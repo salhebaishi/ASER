@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desert Odyssey AR Chemistry</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Tone.js, Three.js, and MediaPipe Hands -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.142.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: none;
+        }
+        #ar-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* Mirror the video feed for intuitive hand control */
+        }
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 1.5rem;
+            color: white;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 70%, rgba(0,0,0,0.8) 100%);
+            pointer-events: none; /* Allow clicks to pass through to the canvas */
+        }
+        .overlay > * {
+             pointer-events: auto; /* Re-enable pointer events for UI elements */
+        }
+        .modal-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            backdrop-filter: blur(4px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+        }
+        .modal-content {
+            background-color: #1f2937;
+            padding: 2rem;
+            border-radius: 1rem;
+            width: 90%;
+            max-width: 500px;
+            border: 1px solid #4b5563;
+        }
+        .progress-bar-container {
+            width: 100%;
+            background-color: #374151;
+            border-radius: 9999px;
+            height: 0.75rem;
+        }
+        .progress-bar {
+            background: linear-gradient(to right, #34d399, #10b981);
+            height: 100%;
+            border-radius: 9999px;
+            transition: width 0.5s ease-in-out;
+        }
+        .quiz-option {
+            transition: background-color: 0.2s;
+        }
+        .quiz-option:hover {
+            background-color: #4b5563;
+        }
+        #badge-toast {
+            position: fixed;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #6d28d9;
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+            z-index: 100;
+            transition: opacity 0.5s, transform 0.5s;
+        }
+        .object-label {
+            position: absolute;
+            color: white;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+            text-align: center;
+            transform: translateX(-50%) translateY(-120%); /* Position above the object center */
+            display: none; /* Hidden by default */
+            pointer-events: none;
+            text-transform: capitalize;
+        }
+        /* Backpack styles */
+        .backpack-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 1rem;
+            max-height: 40vh;
+            overflow-y: auto;
+            margin-top: 1rem;
+        }
+        .backpack-item {
+            background-color: #374151;
+            border: 1px solid #4b5563;
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.2s;
+        }
+        .backpack-item:hover {
+            background-color: #4b5563;
+            transform: scale(1.05);
+        }
+        .backpack-item-name {
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+            text-transform: capitalize;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+
+    <div id="ar-container" class="hidden">
+        <video id="video" playsinline></video>
+        <canvas id="canvas"></canvas>
+    </div>
+
+    <!-- Object Labels -->
+    <div id="label-draggable" class="object-label"></div>
+    <div id="label-target" class="object-label"></div>
+    
+    <div id="ui-overlay" class="overlay hidden">
+        <!-- Top UI: Progress, Level, and Title -->
+        <div class="top-ui">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold">Desert Odyssey AR</h1>
+                    <p class="text-sm text-gray-300">An ASER Framework Experience</p>
+                </div>
+                <div class="text-right">
+                    <p class="font-bold text-lg">Level <span id="level-display">1</span></p>
+                    <div id="badges-container" class="flex justify-end space-x-1 mt-1"></div>
+                </div>
+            </div>
+            <div class="mt-4">
+                <p class="text-sm font-semibold mb-1">Adventure Progress</p>
+                <div class="progress-bar-container">
+                    <div id="progress-bar" class="progress-bar" style="width: 0%;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom UI: Story and Interaction -->
+        <div class="bottom-ui">
+            <div id="story-box" class="bg-black/60 p-4 rounded-lg backdrop-blur-sm border border-gray-600">
+                <h2 id="story-title" class="text-lg font-bold text-emerald-300"></h2>
+                <p id="story-text" class="mt-2 text-gray-200"></p>
+            </div>
+            <div class="flex space-x-2 mt-4">
+                <button id="backpack-button" class="w-1/3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg shadow-lg hidden">Open Backpack</button>
+                <button id="action-button" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-lg shadow-lg">
+                    Start Challenge
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="start-modal" class="modal-bg">
+        <div class="modal-content text-center">
+            <h1 class="text-3xl font-bold mb-4 text-emerald-400">Welcome to Desert Odyssey</h1>
+            <p class="text-gray-300 mb-4">You are a survivor. Enter your name to begin your journey.</p>
+            
+            <input type="text" id="name-input" class="w-full bg-gray-700 text-white placeholder-gray-400 border border-gray-600 rounded-lg px-4 py-2 mb-4" placeholder="Enter your name...">
+
+            <button id="upload-music-button" class="w-full mb-4 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg">
+                Load Custom Music
+            </button>
+            <input type="file" id="music-file-input" accept="audio/mpeg" class="hidden">
+            <p id="music-file-name" class="text-sm text-gray-400 mb-4 truncate">Default Music Loaded</p>
+            
+            <p id="permission-error-message" class="text-sm text-yellow-400 mb-4"></p>
+
+            <button id="start-button" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition-transform transform hover:scale-105">
+                Start Experience
+            </button>
+        </div>
+    </div>
+
+    <div id="quiz-modal" class="modal-bg hidden">
+        <div class="modal-content">
+            <h2 id="quiz-question" class="text-xl font-bold mb-6"></h2>
+            <div id="quiz-options" class="space-y-3"></div>
+            <div id="feedback-box" class="mt-4 p-3 rounded-lg hidden">
+                <p id="feedback-text" class="font-semibold"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Backpack Modal -->
+    <div id="backpack-modal" class="modal-bg hidden">
+        <div class="modal-content">
+            <h2 class="text-xl font-bold text-center">Chemist's Backpack</h2>
+            <p id="backpack-prompt" class="text-center text-gray-300 text-sm mt-1"></p>
+            <div id="backpack-grid" class="backpack-grid"></div>
+            <button id="close-backpack-button" class="mt-4 w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">Close</button>
+        </div>
+    </div>
+    
+    <div id="badge-toast" class="hidden"></div>
+
+
+    <script>
+        // --- Global State and Managers ---
+        let currentStep = 0;
+        let mixer, scene, camera, renderer;
+        const clock = new THREE.Clock();
+        let characterName = "Survivor"; // Default name
+        
+        // Interaction State
+        let draggableObject = null;
+        let targetObject = null;
+        let currentlyDraggedObject = null;
+        let isDragging = false;
+        const initialPositions = new Map();
+        
+        // Gamification State
+        let level = 1;
+        let badges = [];
+        let mistakeMadeOnCurrentQuestion = false;
+        let inventory = ['aluminum_foil', 'baking_soda', 'cabbage_dropper', 'catalyst_pouch', 'dirty_water_cup', 'drain_cleaner', 'electrodes', 'heat_source', 'lemon_half', 'purification_powder', 'sugar_pile', 'water_cup'].sort();
+
+        // Music State
+        let customMusicUrl = null;
+
+        // --- Hand Tracking Manager ---
+        const handTrackingManager = {
+            hands: null,
+            latestResults: null,
+            isPinching: false,
+            
+            initialize(videoElement) {
+                this.hands = new Hands({
+                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+                });
+                this.hands.setOptions({
+                    maxNumHands: 1,
+                    modelComplexity: 1,
+                    minDetectionConfidence: 0.5,
+                    minTrackingConfidence: 0.5
+                });
+                this.hands.onResults((results) => {
+                    this.latestResults = results;
+                    this.checkPinch();
+                });
+
+                const cam = new Camera(videoElement, {
+                    onFrame: async () => {
+                        await this.hands.send({ image: videoElement });
+                    },
+                    width: 1280,
+                    height: 720
+                });
+                cam.start();
+            },
+
+            checkPinch() {
+                this.isPinching = false;
+                if (this.latestResults && this.latestResults.multiHandLandmarks && this.latestResults.multiHandLandmarks.length > 0) {
+                    const landmarks = this.latestResults.multiHandLandmarks[0];
+                    const thumbTip = landmarks[4];
+                    const indexTip = landmarks[8];
+                    const distance = Math.hypot(indexTip.x - thumbTip.x, indexTip.y - thumbTip.y);
+                    if (distance < 0.05) { // Threshold for pinch detection
+                        this.isPinching = true;
+                    }
+                }
+            },
+
+            getFingerScreenPos() {
+                if (this.latestResults && this.latestResults.multiHandLandmarks && this.latestResults.multiHandLandmarks.length > 0) {
+                    const indexTip = this.latestResults.multiHandLandmarks[0][8];
+                    // Flip the x-coordinate because the video is mirrored
+                    return { x: (1 - indexTip.x) * window.innerWidth, y: indexTip.y * window.innerHeight };
+                }
+                return null;
+            }
+        };
+
+        // --- ASER: Emotional Memory (Sound Manager) ---
+        const soundManager = {
+            synth: null,
+            backgroundMusic: null,
+            isInitialized: false,
+            async initialize() {
+                await window.Tone.start();
+                this.synth = new window.Tone.PolySynth(window.Tone.Synth).toDestination();
+                
+                if (customMusicUrl) {
+                    this.backgroundMusic = new window.Tone.Player({
+                        url: customMusicUrl,
+                        loop: true,
+                        volume: -10,
+                    }).toDestination();
+                    await window.Tone.loaded();
+                } else {
+                    this.backgroundMusic = new window.Tone.Sequence((time, note) => {
+                        const melodySynth = new window.Tone.Synth().toDestination();
+                        melodySynth.triggerAttackRelease(note, 0.5, time);
+                    }, ["C4", "E4", "G4", "C5", "E5", "G4", "E4", "C4"], "4n");
+                    window.Tone.Transport.bpm.value = 80;
+                }
+                this.isInitialized = true;
+            },
+            startBackgroundMusic() {
+                if (!this.isInitialized || !this.backgroundMusic) return;
+                if (this.backgroundMusic instanceof window.Tone.Player) {
+                    if (this.backgroundMusic.loaded) this.backgroundMusic.start();
+                } else {
+                    this.backgroundMusic.start(0);
+                    window.Tone.Transport.start();
+                }
+            },
+            setMusicLevel(level) { // level is between 0 (silent) and 1 (full)
+                 if (this.backgroundMusic && this.backgroundMusic.volume) {
+                    const volumeDb = -20 + (level * 20); // Convert linear to dB-like scale
+                    this.backgroundMusic.volume.rampTo(volumeDb, 0.5);
+                }
+            },
+            playSuccess() { if(this.isInitialized) this.synth.triggerAttackRelease(["C5", "E5", "G5"], "8n"); },
+            playEncouragement() { if(this.isInitialized) this.synth.triggerAttackRelease("A3", "8n"); },
+            playInteraction() { if(this.isInitialized) this.synth.triggerAttackRelease("C3", "8n"); }
+        };
+
+        // --- Story and Content Data ---
+        const storyData = [
+            { title: "No Water to Drink!", text: "{NAME} needs clean water. By heating the salty water, it will evaporate (turn to gas), leaving the salt behind. Cooling the steam will condense it back into pure, drinkable liquid.", actionText: "Begin Distillation", interactionType: 'drag', models: { draggable: 'heat_source', target: 'salty_water' }, reaction: "H₂O(l, impure) + Heat ⟶ H₂O(g) ⟶ H₂O(l, pure)" },
+            { title: "Clean Dirty Water (Disinfect)", text: "{NAME} finds some murky water. The purple powder in {NAME}'s pack is potassium permanganate (KMnO₄), a strong oxidizer that can kill germs.", actionText: "Prepare to Purify", interactionType: 'drag', models: { draggable: 'purification_powder', target: 'murky_water'}, reaction: "2KMnO₄ + H₂O → 2KOH + 2MnO₂ + 3O₂" },
+            { title: "My Knife Is Turning Orange!", text: "{NAME}'s knife is covered in rust (iron oxide), which forms when iron is exposed to water and oxygen. The acid in the lemon can react with the rust to clean the blade.", actionText: "Prepare to Clean", interactionType: 'drag', models: { draggable: 'lemon_half', target: 'knife'}, reaction: "Fe₂O₃ + 6H⁺ → 2Fe³⁺ + 3H₂O" },
+            { title: "Lemon Battery!", text: "{NAME} needs light. By inserting two different metals (like copper and zinc) into a lemon, the acidic juice acts as an electrolyte, allowing electrons to flow and create a current.", actionText: "Prepare Battery", interactionType: 'drag', models: { draggable: 'electrodes', target: 'lemon_battery_body'}, reaction: "Zn + Cu²⁺ → Zn²⁺ + Cu" },
+            { title: "Foam Fountain Signal!", text: "To create a big visual signal, {NAME} can rapidly decompose hydrogen peroxide (H₂O₂). A catalyst like potassium iodide (KI) will speed up the reaction, releasing oxygen gas that gets trapped in soap bubbles.", actionText: "Prepare Foam Signal", interactionType: 'drag', models: { draggable: 'catalyst_pouch', target: 'peroxide_beaker'}, reaction: "2H₂O₂ → 2H₂O + O₂(g)" },
+            { title: "Smoke to Ask for Help", text: "A smoke signal needs a fuel (sugar) and an oxidizer (potassium nitrate, KNO₃), which provides oxygen for the reaction. When heated, they react to produce a large volume of smoke.", actionText: "Prepare Smoke Signal", interactionType: 'drag', models: { draggable: 'sugar_pile', target: 'kno3_pile'}, reaction: "C₁₂H₂₂O₁₁ + KNO₃ → CO₂ + H₂O + N₂ + K₂CO₃" },
+            { title: "Warm at Night", text: "{NAME} is cold. A heat pack contains iron powder that rusts very quickly when exposed to the oxygen in the air. This rapid oxidation is an exothermic reaction, releasing heat.", actionText: "Activate Heat Pack", interactionType: 'tap', models: { target: 'heat_pack' }, reaction: "4Fe + 3O₂ → 2Fe₂O₃ (Exothermic)" },
+            { title: "Inflating a Balloon Signal", text: "An acid (vinegar) and a base (baking soda) react to produce carbon dioxide (CO₂) gas. This gas can be used to inflate a balloon for signaling.", actionText: "Prepare Inflation", interactionType: 'drag', models: { draggable: 'baking_soda', target: 'vinegar_bottle'}, reaction: "NaHCO₃ + HC₂H₃O₂ → NaC₂H₃O₂ + H₂O + CO₂"},
+            { title: "Clean Dirty Water (Filter)", text: "This water is full of dirt. {NAME} can build a filter using sand and charcoal to physically trap large impurities. The charcoal is porous and helps absorb smaller dissolved contaminants.", actionText: "Prepare Filter", interactionType: 'drag', models: { draggable: 'dirty_water_cup', target: 'sand_filter'}, reaction: "Physical Filtration"},
+            { title: "Testing Water pH", text: "Is this new water source safe? The juice from a red cabbage contains a natural pH indicator. It will turn red in acidic water or blue/green in alkaline water.", actionText: "Prepare pH Test", interactionType: 'drag', models: { draggable: 'cabbage_dropper', target: 'water_sample'}, reaction: "Anthocyanin Indicator"},
+            { title: "Hot Cup From White Powder", text: "{NAME} needs to heat something without fire. Calcium oxide (CaO) reacts strongly with water in a highly exothermic reaction, releasing enough heat to boil water.", actionText: "Prepare Reaction", interactionType: 'drag', models: { draggable: 'water_cup', target: 'cao_powder'}, reaction: "CaO + H₂O → Ca(OH)₂ (Exothermic)"},
+            { title: "Making a Hydrogen Balloon", text: "{NAME} needs a signal that can fly. Aluminum foil reacts with a strong base (like a drain cleaner) to produce hydrogen gas (H₂), which is lighter than air.", actionText: "Prepare Hydrogen", interactionType: 'drag', models: { draggable: 'aluminum_foil', target: 'drain_cleaner'}, reaction: "2Al + 2NaOH + 2H₂O → 2NaAlO₂ + 3H₂"},
+            { title: "Ice Without a Fridge", text: "{NAME} needs to cool something down. A cold pack contains ammonium nitrate (NH₄NO₃), which gets very cold when it dissolves in water. This is an endothermic process; it absorbs heat from its surroundings.", actionText: "Activate Cold Pack", interactionType: 'tap', models: { target: 'cold_pack' }, reaction: "NH₄NO₃(s) + H₂O(l) → NH₄NO₃(aq) (Endothermic)" },
+            { title: "Super Bright Fire", text: "For a powerful flare, {NAME} can burn a strip of magnesium. It reacts with oxygen in the air to produce a brilliant white light and intense heat.", actionText: "Ignite Magnesium Strip", interactionType: 'tap', models: { target: 'magnesium' }, reaction: "2Mg + O₂ → 2MgO + Light" },
+            { title: "Final Challenge: The Quiz", text: "{NAME} has used chemistry to master the elements. Now, test your knowledge.", actionText: "Start the Quiz", models: null }
+        ];
+        
+        const quizData = [
+            { question: "What process uses evaporation and condensation to purify water?", options: ["Filtration", "Distillation"], answer: "Distillation" },
+            { question: "What is the chemical name for rust?", options: ["Iron Citrate", "Iron Oxide"], answer: "Iron Oxide" },
+            { question: "What does potassium permanganate (KMnO₄) do to dirty water?", options: ["Makes it salty", "Disinfects it"], answer: "Disinfects it" },
+            { question: "What gas inflates a balloon when vinegar and baking soda mix?", options: ["Hydrogen (H₂)", "Carbon Dioxide (CO₂)"], answer: "Carbon Dioxide (CO₂)"},
+            { question: "A heat pack getting warm is an ___ reaction.", options: ["Exothermic", "Endothermic"], answer: "Exothermic" },
+            { question: "What material in a filter traps impurities?", options: ["Sand", "Charcoal"], answer: "Charcoal" },
+            { question: "Burning magnesium produces what?", options: ["A bright white flame", "Thick black smoke"], answer: "A bright white flame" },
+            { question: "What gas is produced when aluminum reacts with a strong cleaner?", options: ["Oxygen (O₂)", "Hydrogen (H₂)"], answer: "Hydrogen (H₂)"},
+        ];
+
+        // --- ASER: Gamification (Game Manager) ---
+         const gameManager = {
+            levelDisplay: document.getElementById('level-display'),
+            progressBar: document.getElementById('progress-bar'),
+            quizModal: document.getElementById('quiz-modal'),
+            quizQuestion: document.getElementById('quiz-question'),
+            quizOptions: document.getElementById('quiz-options'),
+            feedbackBox: document.getElementById('feedback-box'),
+            feedbackText: document.getElementById('feedback-text'),
+            levelUp() { level++; this.levelDisplay.textContent = level; soundManager.playSuccess(); },
+            awardBadge(badgeName) { if (badges.includes(badgeName)) return; badges.push(badgeName); const badgeElement = document.createElement('span'); badgeElement.textContent = '🏆'; badgeElement.title = badgeName; document.getElementById('badges-container').appendChild(badgeElement); const toast = document.getElementById('badge-toast'); toast.textContent = `Badge Unlocked: ${badgeName}!`; toast.classList.remove('hidden'); setTimeout(() => { toast.style.opacity = 1; toast.style.transform = 'translateX(-50%) translateY(0)'; }, 10); setTimeout(() => { toast.style.opacity = 0; toast.style.transform = 'translateX(-50%) translateY(20px)'; setTimeout(() => toast.classList.add('hidden'), 500); }, 3000); },
+            updateProgress(step) { const progress = (step / (storyData.length - 1)) * 100; this.progressBar.style.width = `${progress}%`; },
+            startQuiz() { 
+                this.currentQuizQuestion = 0; 
+                this.quizModal.classList.remove('hidden'); 
+                this.showQuizQuestion(); 
+                soundManager.setMusicLevel(0.3); // Lower music volume for quiz
+            },
+            showQuizQuestion() { mistakeMadeOnCurrentQuestion = false; this.feedbackBox.classList.add('hidden'); const q = quizData[this.currentQuizQuestion]; this.quizQuestion.textContent = q.question; this.quizOptions.innerHTML = ''; q.options.forEach(option => { const button = document.createElement('button'); button.textContent = option; button.className = "w-full text-left p-4 bg-gray-700 rounded-lg quiz-option"; button.onclick = () => this.checkAnswer(option); this.quizOptions.appendChild(button); }); },
+            checkAnswer(selectedOption) { const correctAnwer = quizData[this.currentQuizQuestion].answer; this.feedbackBox.classList.remove('hidden'); if (selectedOption === correctAnwer) { soundManager.playSuccess(); this.feedbackText.textContent = "Correct! Well done."; this.feedbackBox.className = "mt-4 p-3 rounded-lg bg-green-800 text-green-200"; if (mistakeMadeOnCurrentQuestion) { this.awardBadge("Comeback Kid"); } setTimeout(() => { this.currentQuizQuestion++; if (this.currentQuizQuestion < quizData.length) { this.showQuizQuestion(); } else { this.endQuiz(); } }, 1500); } else { soundManager.playEncouragement(); mistakeMadeOnCurrentQuestion = true; this.feedbackText.textContent = "That's a great guess! Give it another shot!"; this.feedbackBox.className = "mt-4 p-3 rounded-lg bg-yellow-800 text-yellow-200"; } },
+            endQuiz() { 
+                this.quizModal.classList.add('hidden'); 
+                storyManager.showFinalMessage(); 
+                this.levelUp(); 
+                soundManager.setMusicLevel(1); // Restore music volume
+            }
+        };
+
+        // --- ASER: Interactive Storytelling (Story Manager) ---
+        const storyManager = {
+            storyTitle: document.getElementById('story-title'),
+            storyText: document.getElementById('story-text'),
+            actionButton: document.getElementById('action-button'),
+            backpackButton: document.getElementById('backpack-button'),
+
+            updateStep(stepIndex) {
+                const step = storyData[stepIndex];
+                this.storyTitle.textContent = step.title.replace(/{NAME}/g, characterName);
+                this.storyText.innerHTML = `${step.text.replace(/{NAME}/g, characterName)}`;
+                this.actionButton.textContent = step.actionText;
+                this.actionButton.onclick = step.models ? () => this.startChallenge(step) : () => gameManager.startQuiz();
+                this.actionButton.style.width = '100%';
+                this.backpackButton.classList.add('hidden');
+                this.actionButton.classList.remove('hidden');
+            },
+
+            startChallenge(step) {
+                if (draggableObject) scene.remove(draggableObject);
+                if (targetObject) scene.remove(targetObject);
+                draggableObject = targetObject = null;
+                arManager.hideAllLabels();
+                initialPositions.clear();
+                
+                arManager.loadStepModels(step, (models) => {
+                    targetObject = models.target;
+                    scene.add(targetObject);
+                    this.actionButton.classList.add('hidden');
+                    
+                    if(step.interactionType === 'drag') {
+                        this.backpackButton.classList.remove('hidden');
+                        document.getElementById('action-button').style.width = '66.66%';
+                        this.storyText.innerHTML = `Select the correct chemical from your backpack to complete the reaction: <br> <span class='font-mono'>${step.reaction}</span>`;
+                    } else { // Tap interaction
+                        this.storyText.textContent = "Pinch the object to perform the chemical reaction.";
+                    }
+                });
+            },
+            
+            completeChallenge() {
+                const objectToAnimate = targetObject;
+                if (!objectToAnimate || !objectToAnimate.animationClip) return;
+                
+                arManager.hideAllLabels();
+                if (draggableObject) scene.remove(draggableObject);
+                draggableObject = null;
+
+                mixer = new THREE.AnimationMixer(objectToAnimate);
+                const action = mixer.clipAction(objectToAnimate.animationClip);
+                action.reset().setLoop(THREE.LoopOnce).play();
+                
+                mixer.addEventListener('finished', () => {
+                    scene.remove(targetObject);
+                    targetObject = null;
+                    mixer = null; 
+                    currentStep++;
+                    gameManager.updateProgress(currentStep); 
+                    gameManager.levelUp();
+                    storyManager.updateStep(currentStep);
+                });
+            },
+            
+            showFinalMessage() {
+                this.storyTitle.textContent = "Congratulations!";
+                this.storyText.textContent = `You've successfully helped ${characterName}!`;
+                this.actionButton.textContent = "Restart Journey";
+                this.actionButton.onclick = () => window.location.reload();
+                this.actionButton.classList.remove('hidden');
+                this.backpackButton.classList.add('hidden');
+            }
+        };
+
+        // --- AR and 3D Rendering Manager ---
+        const arManager = {
+            async init(isArMode = true) {
+                scene = new THREE.Scene();
+                camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                camera.position.z = 5;
+                const canvas = document.getElementById('canvas');
+                
+                renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: isArMode });
+                if (!isArMode) renderer.setClearColor(0x111827);
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                renderer.setPixelRatio(window.devicePixelRatio);
+                
+                const light = new THREE.AmbientLight(0xffffff, 0.7);
+                scene.add(light);
+                const pointLight = new THREE.PointLight(0xffffff, 0.8);
+                camera.add(pointLight);
+                scene.add(camera);
+
+                if (isArMode) {
+                    const video = document.getElementById('video');
+                    handTrackingManager.initialize(video);
+                }
+                
+                document.getElementById('ar-container').classList.remove('hidden');
+                
+                renderer.setAnimationLoop(this.renderLoop.bind(this));
+                
+                document.getElementById('ui-overlay').classList.remove('hidden');
+                storyManager.updateStep(currentStep);
+                gameManager.updateProgress(currentStep);
+            },
+            
+            renderLoop() {
+                const delta = clock.getDelta();
+                if (mixer) mixer.update(delta);
+
+                this.handleHandInteraction();
+
+                if(draggableObject) this.updateLabel(draggableObject, document.getElementById('label-draggable'));
+                if(targetObject) this.updateLabel(targetObject, document.getElementById('label-target'));
+
+                renderer.render(scene, camera);
+            },
+            
+            handleHandInteraction() {
+                const fingerPos = handTrackingManager.getFingerScreenPos();
+                if (!fingerPos) {
+                    if(isDragging && currentlyDraggedObject) { // If hand is lost while dragging
+                        currentlyDraggedObject.position.copy(initialPositions.get(currentlyDraggedObject));
+                        arManager.setObjectVisualState(currentlyDraggedObject, 'normal');
+                        isDragging = false;
+                        currentlyDraggedObject = null;
+                    }
+                    return;
+                }
+
+                const fingerNDC = {
+                    x: (fingerPos.x / window.innerWidth) * 2 - 1,
+                    y: -(fingerPos.y / window.innerHeight) * 2 + 1
+                };
+
+                if (handTrackingManager.isPinching) {
+                    if (!isDragging) {
+                        const checkObjects = [draggableObject, targetObject].filter(o => o);
+                        for (const obj of checkObjects) {
+                            if (!obj) continue;
+                            const objPos = new THREE.Vector3();
+                            obj.getWorldPosition(objPos).project(camera);
+                            const distance = Math.hypot(fingerNDC.x - objPos.x, fingerNDC.y - objPos.y);
+                            
+                            if (distance < 0.2) { // Grab threshold
+                                const step = storyData[currentStep];
+                                if (step.interactionType === 'tap' && obj === targetObject) {
+                                    storyManager.completeChallenge();
+                                    return; 
+                                } else if (step.interactionType === 'drag' && obj === draggableObject) {
+                                    isDragging = true;
+                                    currentlyDraggedObject = obj;
+                                    this.setObjectVisualState(currentlyDraggedObject, 'grabbed');
+                                    return;
+                                }
+                            }
+                        }
+                    } else { // Is currently dragging
+                        const vec = new THREE.Vector3(fingerNDC.x, fingerNDC.y, 0.5);
+                        vec.unproject(camera);
+                        const dir = vec.sub(camera.position).normalize();
+                        const distance = -camera.position.z / dir.z;
+                        const pos = camera.position.clone().add(dir.multiplyScalar(distance));
+                        currentlyDraggedObject.position.copy(pos);
+                    }
+                } else { // Not pinching
+                    if (isDragging && currentlyDraggedObject) {
+                         this.setObjectVisualState(currentlyDraggedObject, 'normal');
+                         const targetPos = new THREE.Vector3();
+                         targetObject.getWorldPosition(targetPos).project(camera);
+                         const dragPos = new THREE.Vector3();
+                         currentlyDraggedObject.getWorldPosition(dragPos).project(camera);
+                         const dropDistance = Math.hypot(targetPos.x - dragPos.x, targetPos.y - dragPos.y);
+
+                         if (dropDistance < 0.25) { // Drop threshold
+                             if (currentlyDraggedObject === draggableObject) {
+                                 storyManager.completeChallenge();
+                             }
+                         } else {
+                            currentlyDraggedObject.position.copy(initialPositions.get(currentlyDraggedObject));
+                         }
+                         isDragging = false;
+                         currentlyDraggedObject = null;
+                    }
+                }
+            },
+
+            setObjectVisualState(object, state) {
+                if (!object) return;
+                object.traverse((child) => {
+                    if (child.isMesh && child.material.emissive) {
+                        if (!child.material.userData) child.material.userData = {};
+                        if (child.material.userData.originalEmissive === undefined) {
+                            child.material.userData.originalEmissive = child.material.emissive.getHex();
+                        }
+
+                        if (state === 'grabbed') {
+                            child.material.emissive.setHex(0x00ff00); // Glow green
+                        } else { // normal
+                            child.material.emissive.setHex(child.material.userData.originalEmissive); // No glow
+                        }
+                    }
+                });
+            },
+
+            updateLabel(object, labelElement) {
+                if (!object || !labelElement) return;
+                labelElement.textContent = object.userData.name;
+                const vector = new THREE.Vector3();
+                object.getWorldPosition(vector);
+                vector.project(camera);
+
+                const x = (vector.x * .5 + .5) * renderer.domElement.clientWidth;
+                const y = (vector.y * -.5 + .5) * renderer.domElement.clientHeight;
+
+                labelElement.style.display = 'block';
+                labelElement.style.left = `${x}px`;
+                labelElement.style.top = `${y}px`;
+            },
+
+            hideAllLabels() {
+                document.getElementById('label-draggable').style.display = 'none';
+                document.getElementById('label-target').style.display = 'none';
+            },
+
+            loadStepModels(step, callback) {
+                const models = { draggable: null, target: null };
+                const zPos = -4;
+                
+                if (step.models.draggable) { 
+                    models.draggable = this.createModel(step.models.draggable);
+                    models.draggable.position.set(-1.5, 0.5, zPos);
+                }
+                models.target = this.createModel(step.models.target);
+                models.target.position.set(step.interactionType === 'drag' ? 1.5 : 0, 0, zPos);
+                models.target.animationClip = this.createAnimationForTarget(models.target);
+
+                callback(models);
+            },
+
+            createModel(type) {
+                let geometry, material;
+                const model = new THREE.Group();
+                model.userData.name = type.replace(/_/g, ' ');
+                model.scale.set(2, 2, 2); // Double the size of all models
+                
+                switch (type) {
+                    // --- Draggables ---
+                    case 'purification_powder': geometry = new THREE.BoxGeometry(0.4, 0.6, 0.2); material = new THREE.MeshStandardMaterial({ color: 0x800080 }); model.add(new THREE.Mesh(geometry, material)); break;
+                    case 'lemon_half': geometry = new THREE.SphereGeometry(0.4, 32, 32, 0, Math.PI); material = new THREE.MeshStandardMaterial({ color: 0xFFFF00 }); const l = new THREE.Mesh(geometry, material); l.rotation.z = Math.PI / 2; model.add(l); break;
+                    case 'electrodes': const cG = new THREE.CylinderGeometry(0.2, 0.2, 0.04, 16); const cM = new THREE.MeshStandardMaterial({ color: 0xB87333 }); const c=new THREE.Mesh(cG,cM); c.position.y=0.2; model.add(c); const nG = new THREE.CylinderGeometry(0.05, 0.05, 0.6, 8); const nM=new THREE.MeshStandardMaterial({color:0xD3D3D3}); const n=new THREE.Mesh(nG,nM); n.position.y=-0.2; model.add(n); break;
+                    case 'catalyst_pouch': geometry = new THREE.BoxGeometry(0.4, 0.4, 0.1); material = new THREE.MeshStandardMaterial({ color: 0xD2B48C }); model.add(new THREE.Mesh(geometry, material)); break;
+                    case 'sugar_pile': geometry = new THREE.ConeGeometry(0.4, 0.5, 32); material = new THREE.MeshStandardMaterial({ color: 0xFFFFFF }); model.add(new THREE.Mesh(geometry, material)); break;
+                    case 'baking_soda': geometry = new THREE.BoxGeometry(0.4, 0.6, 0.2); material = new THREE.MeshStandardMaterial({ color: 0xF0EAD6 }); model.add(new THREE.Mesh(geometry, material)); break;
+                    case 'dirty_water_cup': geometry = new THREE.CylinderGeometry(0.3, 0.3, 0.6, 32); material = new THREE.MeshStandardMaterial({ color: 0x6B4F35, transparent:true, opacity:0.8 }); model.add(new THREE.Mesh(geometry, material)); break;
+                    case 'cabbage_dropper': geometry = new THREE.CylinderGeometry(0.05, 0.05, 0.8, 16); material = new THREE.MeshStandardMaterial({ color: 0x4B0082 }); model.add(new THREE.Mesh(geometry, material)); break;
+                    case 'water_cup': geometry = new THREE.CylinderGeometry(0.3, 0.3, 0.6, 32); material = new THREE.MeshStandardMaterial({ color: 0xADD8E6, transparent:true, opacity:0.5 }); model.add(new THREE.Mesh(geometry, material)); break;
+                    case 'aluminum_foil': geometry = new THREE.BoxGeometry(0.5, 0.5, 0.05); material = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9, roughness: 0.2 }); model.add(new THREE.Mesh(geometry, material)); break;
+                    case 'heat_source': geometry = new THREE.ConeGeometry(0.3, 0.5, 32); material = new THREE.MeshStandardMaterial({ color: 0xff4500, emissive: 0x660000 }); model.add(new THREE.Mesh(geometry, material)); break;
+
+                    // --- Targets ---
+                    case 'murky_water': geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 32); material = new THREE.MeshStandardMaterial({ color: 0x6B4F35, transparent: true, opacity: 0.7 }); const w = new THREE.Mesh(geometry, material); w.name = "water_mesh"; model.add(w); break;
+                    case 'knife': geometry = new THREE.BoxGeometry(0.2, 2, 0.05); material = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8 }); const k = new THREE.Mesh(geometry, material); k.name = "blade_mesh"; model.add(k); break;
+                    case 'lemon_battery_body': geometry = new THREE.SphereGeometry(0.5, 32, 32); material = new THREE.MeshStandardMaterial({ color: 0xFFFF00 }); const lb = new THREE.Mesh(geometry, material); lb.scale.set(1, 1.2, 1); lb.name="lemon_mesh"; model.add(lb); const s = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshBasicMaterial({color:0xFFFFFF, transparent:true, opacity:0})); s.name="spark_mesh"; s.position.y=0.5; model.add(s); break;
+                    case 'peroxide_beaker': geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 32); material = new THREE.MeshStandardMaterial({ color: 0xADD8E6, transparent: true, opacity: 0.5 }); model.add(new THREE.Mesh(geometry, material)); const fG = new THREE.CylinderGeometry(0.45, 0.45, 0.1, 32); const fM = new THREE.MeshStandardMaterial({color:0xFFFFFF}); const f = new THREE.Mesh(fG,fM); f.name="foam_mesh"; f.position.y=-0.4; model.add(f); break;
+                    case 'kno3_pile': geometry = new THREE.ConeGeometry(0.5, 0.4, 32); material = new THREE.MeshStandardMaterial({ color: 0x964B00 }); model.add(new THREE.Mesh(geometry, material)); const smG = new THREE.CylinderGeometry(0.1, 1, 0.1, 32); const smM = new THREE.MeshStandardMaterial({color:0x888888, transparent:true, opacity:0}); const sm=new THREE.Mesh(smG,smM); sm.name="smoke_mesh"; model.add(sm); break;
+                    case 'vinegar_bottle': geometry = new THREE.CylinderGeometry(0.4, 0.4, 1.2, 32); material = new THREE.MeshStandardMaterial({color: 0xF5F5DC, transparent: true, opacity: 0.6}); model.add(new THREE.Mesh(geometry, material)); const balG = new THREE.SphereGeometry(0.2, 32, 32); const balM = new THREE.MeshStandardMaterial({color:0xFF4136, opacity:0.8}); const bal = new THREE.Mesh(balG, balM); bal.name="balloon_mesh"; bal.position.y=0.7; model.add(bal); break;
+                    case 'sand_filter': const filG = new THREE.CylinderGeometry(0.2, 0.6, 1.5, 32); const filM = new THREE.MeshStandardMaterial({color: 0x888888, transparent:true, opacity:0.3}); model.add(new THREE.Mesh(filG, filM)); const cleanG = new THREE.CylinderGeometry(0.18, 0.58, 0.1, 32); const cleanM = new THREE.MeshStandardMaterial({color:0xADD8E6, transparent:true, opacity:0}); const cleanW = new THREE.Mesh(cleanG, cleanM); cleanW.name="clean_water_mesh"; cleanW.position.y = -0.7; model.add(cleanW); break;
+                    case 'water_sample': geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 32); material = new THREE.MeshStandardMaterial({ color: 0xADD8E6, transparent: true, opacity: 0.5 }); const ws = new THREE.Mesh(geometry, material); ws.name="sample_mesh"; model.add(ws); break;
+                    case 'cao_powder': geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 32); material = new THREE.MeshStandardMaterial({ color: 0xF5F5F5 }); const cao = new THREE.Mesh(geometry, material); cao.name = "cao_mesh"; model.add(cao); break;
+                    case 'distillation_setup': geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5); material = new THREE.MeshStandardMaterial({color: 0xaaaaaa, transparent: true, opacity: 0.5}); const ds = new THREE.Mesh(geometry, material); ds.name="distill_mesh"; model.add(ds); break;
+                    case 'drain_cleaner': geometry = new THREE.CylinderGeometry(0.3, 0.3, 0.8, 32); material = new THREE.MeshStandardMaterial({ color: 0x333333 }); model.add(new THREE.Mesh(geometry, material)); break;
+                    case 'salty_water': geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 32); material = new THREE.MeshStandardMaterial({ color: 0x87CEEB, transparent: true, opacity: 0.6 }); const sw = new THREE.Mesh(geometry, material); sw.name = "salty_water_mesh"; model.add(sw); break;
+
+                    // --- Tap Models ---
+                    case 'cold_pack': geometry = new THREE.BoxGeometry(1, 1, 0.2); material = new THREE.MeshStandardMaterial({ color: 0x4169E1, transparent: true }); const p = new THREE.Mesh(geometry, material); p.name="pack_mesh"; model.add(p); break;
+                    case 'heat_pack': geometry = new THREE.BoxGeometry(1, 1, 0.2); material = new THREE.MeshStandardMaterial({ color: 0xB22222, transparent: true }); const hp = new THREE.Mesh(geometry, material); hp.name="heat_pack_mesh"; model.add(hp); break;
+                    case 'magnesium': geometry = new THREE.BoxGeometry(1.5, 0.15, 0.03); material = new THREE.MeshStandardMaterial({ color: 0xeeeeee }); const m = new THREE.Mesh(geometry, material); m.name = "strip_mesh"; model.add(m); break;
+                }
+                model.traverse((child) => {
+                    if(child.isMesh && child.material.isMeshStandardMaterial) {
+                         child.material.emissive = new THREE.Color(0x000000);
+                    }
+                });
+                return model;
+            },
+
+            createAnimationForTarget(modelInstance) {
+                const find = (name) => modelInstance.getObjectByProperty('name', name);
+                const type = modelInstance.userData.name.replace(/ /g, '_');
+                switch(type) {
+                    case 'salty_water': 
+                        const waterMesh = find('salty_water_mesh');
+                        modelInstance.userData.name = "Water"; // Change name for the label
+                        return new THREE.AnimationClip('anim', 2, [new THREE.ColorKeyframeTrack(`${waterMesh.uuid}.material.color`, [0, 1.5], [0.52, 0.8, 0.92, 0.68, 0.85, 0.9])]);
+                    case 'murky_water': return new THREE.AnimationClip('anim', 2, [new THREE.ColorKeyframeTrack(`${find('water_mesh').uuid}.material.color`, [0, 1.5], [0.42,0.31,0.21, 0.68,0.85,0.9])]);
+                    case 'knife': return new THREE.AnimationClip('anim', 1.5, [new THREE.ColorKeyframeTrack(`${find('blade_mesh').uuid}.material.color`, [0, 1], [0.54,0.27,0.07, 0.75,0.75,0.75])]);
+                    case 'lemon_battery_body': const spark = find('spark_mesh'); const sparkPosTrack = new THREE.VectorKeyframeTrack(`${spark.uuid}.position`, [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5], [0,0.5,0,  -0.2,0.5,0,  0.2,0.5,0,  -0.1,0.5,0.1,  0.1,0.5,-0.1, -0.2,0.5,0.1, 0,0.5,0]); const sparkOpacityTrack = new THREE.NumberKeyframeTrack(`${spark.uuid}.material.opacity`, [0, 0.2, 0.4, 0.6, 0.8, 1, 1.2, 1.5], [0, 1, 0, 1, 0, 1, 0, 0]); return new THREE.AnimationClip('anim', 2, [sparkPosTrack, sparkOpacityTrack]);
+                    case 'peroxide_beaker': const f = find("foam_mesh"); return new THREE.AnimationClip('anim', 2, [new THREE.VectorKeyframeTrack(`${f.uuid}.scale`, [0, 1.5], [1,1,1, 1,20,1]), new THREE.VectorKeyframeTrack(`${f.uuid}.position`, [0, 1.5], [0,-0.4,0, 0,0.5,0])]);
+                    case 'kno3_pile': const sm = find("smoke_mesh"); return new THREE.AnimationClip('anim', 2.5, [new THREE.VectorKeyframeTrack(`${sm.uuid}.scale`, [0, 2], [1,1,1, 1,30,1]), new THREE.VectorKeyframeTrack(`${sm.uuid}.position`, [0, 2], [0,0,0, 0,1.5,0]), new THREE.NumberKeyframeTrack(`${sm.uuid}.material.opacity`, [0, 0.5, 2], [0, 0.6, 0])]);
+                    case 'cold_pack': const p = find("pack_mesh"); const fc = new THREE.Color(0xADD8E6); const coldColorTrack = new THREE.ColorKeyframeTrack(`${p.uuid}.material.color`, [0, 1.5], [p.material.color.r, p.material.color.g, p.material.color.b, fc.r, fc.g, fc.b]); const coldOpacityTrack = new THREE.NumberKeyframeTrack(`${p.uuid}.material.opacity`, [0, 1.5], [1, 0.9]); const coldScaleTrack = new THREE.VectorKeyframeTrack(`${p.uuid}.scale`, [0, 0.5, 1, 1.5], [1,1,1, 0.98,0.98,0.98, 1,1,1, 0.98,0.98,0.98]); return new THREE.AnimationClip('anim', 2, [coldColorTrack, coldOpacityTrack, coldScaleTrack]);
+                    case 'heat_pack': const hp = find("heat_pack_mesh"); const hc = new THREE.Color(0xFF8C00); const heatColorTrack = new THREE.ColorKeyframeTrack(`${hp.uuid}.material.color`, [0, 1.5], [hp.material.color.r, hp.material.color.g, hp.material.color.b, hc.r, hc.g, hc.b]); const heatScaleTrack = new THREE.VectorKeyframeTrack(`${hp.uuid}.scale`, [0, 0.5, 1, 1.5], [1,1,1, 1.05,1.05,1.05, 1,1,1, 1.05,1.05,1.05]); return new THREE.AnimationClip('anim', 2, [heatColorTrack, heatScaleTrack]);
+                    case 'magnesium': const m = find("strip_mesh"); const brightWhite = new THREE.Color(0xffffff); const black = new THREE.Color(0x000000); const emissiveTrack = new THREE.ColorKeyframeTrack(`${m.uuid}.material.emissive`, [0, 0.1, 0.4, 1.5], [black.r, black.g, black.b, brightWhite.r, brightWhite.g, brightWhite.b, brightWhite.r, brightWhite.g, brightWhite.b, black.r, black.g, black.b]); const scaleTrack = new THREE.VectorKeyframeTrack(`${m.uuid}.scale`, [0, 0.1, 0.2], [1,1,1, 1.2, 1.2, 1.2, 1,1,1]); return new THREE.AnimationClip('anim', 1.5, [emissiveTrack, scaleTrack]);
+                    case 'vinegar_bottle': const bal = find("balloon_mesh"); return new THREE.AnimationClip('anim', 2, [new THREE.VectorKeyframeTrack(`${bal.uuid}.scale`, [0, 1.5], [1,1,1, 5,5,5])]);
+                    case 'sand_filter': const cleanW = find("clean_water_mesh"); return new THREE.AnimationClip('anim', 2, [new THREE.NumberKeyframeTrack(`${cleanW.uuid}.material.opacity`, [0, 1.5], [0, 0.7])]);
+                    case 'water_sample': const ws = find("sample_mesh"); const rc = new THREE.Color(0xFF0000); return new THREE.AnimationClip('anim', 1.5, [new THREE.ColorKeyframeTrack(`${ws.uuid}.material.color`, [0, 1], [ws.material.color.r, ws.material.color.g, ws.material.color.b, rc.r, rc.g, rc.b])]);
+                    case 'cao_powder': const cao = find("cao_mesh"); const hot = new THREE.Color(0xFF4500); return new THREE.AnimationClip('anim', 1.5, [new THREE.ColorKeyframeTrack(`${cao.uuid}.material.emissive`, [0, 0.5, 1], [0,0,0, hot.r, hot.g, hot.b, 0,0,0])]);
+                    case 'distillation_setup': return new THREE.AnimationClip('anim', 2, [new THREE.NumberKeyframeTrack(`${find('distill_mesh').uuid}.material.opacity`, [0, 1.5], [0.5, 0])]);
+                    case 'drain_cleaner': return new THREE.AnimationClip('anim', 2, []); // Placeholder, as this model has no visual change itself
+                    default: return null;
+                }
+            }
+        };
+
+        // --- Backpack Manager ---
+        const backpackManager = {
+            modal: document.getElementById('backpack-modal'),
+            grid: document.getElementById('backpack-grid'),
+            prompt: document.getElementById('backpack-prompt'),
+            
+            open(step) {
+                this.prompt.textContent = `Select an item to use for: ${step.title}`;
+                this.grid.innerHTML = '';
+                if (inventory.length === 0) {
+                     this.grid.innerHTML = '<p class="text-gray-400 col-span-full">Your backpack is empty.</p>';
+                } else {
+                    inventory.forEach(itemName => {
+                        const itemEl = document.createElement('div');
+                        itemEl.className = 'backpack-item';
+                        itemEl.innerHTML = `<div class="backpack-item-name">${itemName.replace(/_/g, ' ')}</div>`;
+                        const handler = (event) => {
+                            event.preventDefault(); // Important for touch devices
+                            this.selectItem(itemName);
+                        };
+                        itemEl.onclick = handler;
+                        itemEl.addEventListener('touchstart', handler, { passive: false });
+                        this.grid.appendChild(itemEl);
+                    });
+                }
+                this.modal.classList.remove('hidden');
+            },
+            
+            selectItem(itemName) {
+                const step = storyData[currentStep];
+                if (itemName === step.models.draggable) {
+                    if (draggableObject) scene.remove(draggableObject);
+                    draggableObject = arManager.createModel(itemName);
+                    draggableObject.position.set(-1.5, 0.5, -4);
+                    initialPositions.set(draggableObject, draggableObject.position.clone());
+                    scene.add(draggableObject);
+                    this.modal.classList.add('hidden');
+                } else {
+                    soundManager.playEncouragement();
+                    this.prompt.textContent = "That's not the right item. Try again.";
+                }
+            },
+
+            close() {
+                this.modal.classList.add('hidden');
+            }
+        };
+        
+        document.getElementById('backpack-button').onclick = () => backpackManager.open(storyData[currentStep]);
+        document.getElementById('close-backpack-button').onclick = () => backpackManager.close();
+
+        // --- App Initialization ---
+        document.getElementById('upload-music-button').addEventListener('click', () => {
+            document.getElementById('music-file-input').click();
+        });
+
+        document.getElementById('music-file-input').addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file && file.type === "audio/mpeg") {
+                customMusicUrl = URL.createObjectURL(file);
+                document.getElementById('music-file-name').textContent = file.name;
+                console.log("Custom music file loaded:", file.name);
+            }
+        });
+        
+        document.getElementById('start-button').addEventListener('click', async () => {
+            const startButton = document.getElementById('start-button');
+            const errorMessage = document.getElementById('permission-error-message');
+            
+            startButton.disabled = true;
+            startButton.textContent = "Starting...";
+            errorMessage.textContent = "";
+
+            const nameInput = document.getElementById('name-input').value;
+            if (nameInput.trim() !== "") {
+                characterName = nameInput.trim();
+            }
+
+            try {
+                await soundManager.initialize();
+                soundManager.startBackgroundMusic();
+                
+                try {
+                    await arManager.init(true); // Attempt to start in AR mode
+                } catch (arError) {
+                    console.warn("AR Mode failed, falling back to 2D Mode.", arError);
+                    errorMessage.textContent = "Camera failed. Running in 2D mode.";
+                    await arManager.init(false); // Fallback to 2D mode
+                }
+                
+                document.getElementById('start-modal').classList.add('hidden');
+
+            } catch (err) {
+                console.error("Critical error starting the app:", err);
+                errorMessage.textContent = "A critical error occurred. Please refresh.";
+                startButton.disabled = false;
+                startButton.textContent = "Start Experience";
+            }
+        });
+    </script>
+</body>
+</html>
+
