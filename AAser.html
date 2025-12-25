@@ -656,46 +656,45 @@
                 callback(models);
             },
 
-            createModel(type) {
-            let geometry, material;
-            const model = new THREE.Group();
-            model.userData.name = type.replace(/_/g, ' ');
-            model.scale.set(2, 2, 2); 
+           createModel(type) {
+    let geometry, material;
+    const model = new THREE.Group();
+    model.userData.name = type.replace(/_/g, ' ');
+    model.scale.set(2, 2, 2); 
 
     const loader = new THREE.TextureLoader();
-                
-                switch (type) {
-                    // --- Draggables ---
-                    
-                    // --- Inside the createModel(type) function switch statement ---
 
-case 'heat_source': {
-            const texture = loader.load('heat.png');
-            const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
-            const sprite = new THREE.Sprite(spriteMaterial);
-            sprite.scale.set(1.5, 1.5, 1); 
-            model.add(sprite);
+    // Helper function to handle image loading and errors
+    const loadSprite = (fileName) => {
+        const texture = loader.load(
+            fileName, 
+            () => console.log(`Success: ${fileName} loaded!`),
+            undefined,
+            (err) => console.error(`Error: Could not find ${fileName}. Check the filename and extension carefully.`)
+        );
+        const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
+        const sprite = new THREE.Sprite(spriteMaterial);
+        sprite.scale.set(1.5, 1.5, 1);
+        return sprite;
+    };
+
+    switch (type) {
+        case 'heat_source': {
+            model.add(loadSprite('heat.png'));
             break;
         }
 
         case 'purification_powder': {
-            // NOTE: Ensure your file is exactly named pure.JPG (not .jpg)
-            const texture = loader.load('pure.JPG');
-            const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
-            const sprite = new THREE.Sprite(spriteMaterial);
-            sprite.scale.set(1.5, 1.5, 1); 
-            model.add(sprite);
+            // Check if your file is actually .JPG or .jpg
+            model.add(loadSprite('pure.JPG')); 
             break;
         }
 
-case 'lemon_half': { // Added brackets to create a safe scope
-    const texture = loader.load('lemon.WEBP');
-    const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
-    const sprite = new THREE.Sprite(spriteMaterial);
-    sprite.scale.set(1.5, 1.5, 1); 
-    model.add(sprite);
-    break;
-    }
+        case 'lemon_half': { 
+            // Check if your file is actually .WEBP or .webp
+            model.add(loadSprite('lemon.png')); 
+            break;
+        }
 case 'electrodes': 
     const cG = new THREE.CylinderGeometry(0.2, 0.2, 0.04, 16); 
     const cM = new THREE.MeshStandardMaterial({ color: 0xB87333 }); 
@@ -942,6 +941,7 @@ case 'aluminum_foil':
     </script>
 </body>
 </html>
+
 
 
 
