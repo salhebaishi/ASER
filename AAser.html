@@ -750,8 +750,23 @@ case 'aluminum_foil':
 
                     // --- Targets ---
                     case 'murky_water': geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 32); material = new THREE.MeshStandardMaterial({ color: 0x6B4F35, transparent: true, opacity: 0.7 }); const w = new THREE.Mesh(geometry, material); w.name = "water_mesh"; model.add(w); break;
-                    case 'knife': geometry = new THREE.BoxGeometry(0.2, 2, 0.05); material = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8 }); const k = new THREE.Mesh(geometry, material); k.name = "blade_mesh"; model.add(k); break;
-                    case 'lemon_battery_body': geometry = new THREE.SphereGeometry(0.5, 32, 32); material = new THREE.MeshStandardMaterial({ color: 0xFFFF00 }); const lb = new THREE.Mesh(geometry, material); lb.scale.set(1, 1.2, 1); lb.name="lemon_mesh"; model.add(lb); const s = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshBasicMaterial({color:0xFFFFFF, transparent:true, opacity:0})); s.name="spark_mesh"; s.position.y=0.5; model.add(s); break;
+case 'knife': {
+    const knifeSprite = loadSprite('knife.png');
+    const rustGroup = new THREE.Group();
+    rustGroup.name = "rust_dots";
+
+    for (let i = 0; i < 8; i++) { // Adds 8 rust spots
+        const dot = new THREE.Mesh(
+            new THREE.CircleGeometry(0.05, 16),
+            new THREE.MeshBasicMaterial({ color: 0x8B4513, transparent: true })
+        );
+        dot.position.set((Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 1.2, 0.01);
+        rustGroup.add(dot);
+    }
+    model.add(knifeSprite);
+    model.add(rustGroup);
+    break;
+}                    case 'lemon_battery_body': geometry = new THREE.SphereGeometry(0.5, 32, 32); material = new THREE.MeshStandardMaterial({ color: 0xFFFF00 }); const lb = new THREE.Mesh(geometry, material); lb.scale.set(1, 1.2, 1); lb.name="lemon_mesh"; model.add(lb); const s = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshBasicMaterial({color:0xFFFFFF, transparent:true, opacity:0})); s.name="spark_mesh"; s.position.y=0.5; model.add(s); break;
                     case 'peroxide_beaker': geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 32); material = new THREE.MeshStandardMaterial({ color: 0xADD8E6, transparent: true, opacity: 0.5 }); model.add(new THREE.Mesh(geometry, material)); const fG = new THREE.CylinderGeometry(0.45, 0.45, 0.1, 32); const fM = new THREE.MeshStandardMaterial({color:0xFFFFFF}); const f = new THREE.Mesh(fG,fM); f.name="foam_mesh"; f.position.y=-0.4; model.add(f); break;
                     case 'kno3_pile': geometry = new THREE.ConeGeometry(0.5, 0.4, 32); material = new THREE.MeshStandardMaterial({ color: 0x964B00 }); model.add(new THREE.Mesh(geometry, material)); const smG = new THREE.CylinderGeometry(0.1, 1, 0.1, 32); const smM = new THREE.MeshStandardMaterial({color:0x888888, transparent:true, opacity:0}); const sm=new THREE.Mesh(smG,smM); sm.name="smoke_mesh"; model.add(sm); break;
                     case 'vinegar_bottle': geometry = new THREE.CylinderGeometry(0.4, 0.4, 1.2, 32); material = new THREE.MeshStandardMaterial({color: 0xF5F5DC, transparent: true, opacity: 0.6}); model.add(new THREE.Mesh(geometry, material)); const balG = new THREE.SphereGeometry(0.2, 32, 32); const balM = new THREE.MeshStandardMaterial({color:0xFF4136, opacity:0.8}); const bal = new THREE.Mesh(balG, balM); bal.name="balloon_mesh"; bal.position.y=0.7; model.add(bal); break;
@@ -939,6 +954,7 @@ case 'aluminum_foil':
     </script>
 </body>
 </html>
+
 
 
 
