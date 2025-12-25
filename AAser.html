@@ -667,28 +667,26 @@
                     
                     // --- Inside the createModel(type) function switch statement ---
 
-case 'heat_source': { // Added brackets to create a safe scope
-    const loader = new THREE.TextureLoader();
-    const texture = loader.load('heat.png');
-    const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
-    const sprite = new THREE.Sprite(spriteMaterial);
-    sprite.scale.set(1.5, 1.5, 1); 
-    model.add(sprite);
-    break;
-}
+case 'heat_source': {
+            const texture = loader.load('heat.png');
+            const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+            const sprite = new THREE.Sprite(spriteMaterial);
+            sprite.scale.set(1.5, 1.5, 1); 
+            model.add(sprite);
+            break;
+        }
 
-case 'purification_powder': { // Added brackets to create a safe scope
-    const loader = new THREE.TextureLoader();
-    const texture = loader.load('pure.JPG');
-    const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
-    const sprite = new THREE.Sprite(spriteMaterial);
-    sprite.scale.set(1.5, 1.5, 1); 
-    model.add(sprite);
-    break;
-}
+        case 'purification_powder': {
+            // NOTE: Ensure your file is exactly named pure.JPG (not .jpg)
+            const texture = loader.load('pure.JPG');
+            const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+            const sprite = new THREE.Sprite(spriteMaterial);
+            sprite.scale.set(1.5, 1.5, 1); 
+            model.add(sprite);
+            break;
+        }
 
 case 'lemon_half': { // Added brackets to create a safe scope
-    const loader = new THREE.TextureLoader();
     const texture = loader.load('lemon.WEBP');
     const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
     const sprite = new THREE.Sprite(spriteMaterial);
@@ -942,4 +940,5 @@ case 'aluminum_foil':
     </script>
 </body>
 </html>
+
 
