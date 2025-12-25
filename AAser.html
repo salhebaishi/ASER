@@ -761,10 +761,10 @@ case 'knife': {
     const rustGroup = new THREE.Group();
     rustGroup.name = "rust_spots";
 
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 3; i++) {
         // Create a small brown circle for each rust spot
         const dot = new THREE.Mesh(
-            new THREE.CircleGeometry(0.05, 16),
+            new THREE.CircleGeometry(0.05, 3),
             new THREE.MeshBasicMaterial({ color: 0x8B4513, transparent: true })
         );
         // Position them randomly along the "blade" area
@@ -983,6 +983,7 @@ case 'knife': {
     </script>
 </body>
 </html>
+
 
 
 
