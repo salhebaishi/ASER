@@ -768,10 +768,9 @@ for (let i = 0; i < 4; i++) {
         );
 
         // SHIFT LEFT: We subtract 0.1 from the X position to move them left
-        const xPos = ((Math.random() - 0.5) * 0.2) - 0.25; 
-        
+        const xPos = ((Math.random() - 0.5) * 0.1) - 0.45;        
         // Keep the Y position logic to stay on the lower part of the blade
-        const yPos = (Math.random() * 1.5) - 1.8; 
+        const yPos = (Math.random() * 2.0) - 1.8; 
 
         dot.position.set(xPos, yPos, 0.02);
         rustGroup.add(dot);
@@ -984,6 +983,7 @@ case 'knife': {
     </script>
 </body>
 </html>
+
 
 
 
