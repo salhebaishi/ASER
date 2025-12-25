@@ -751,33 +751,41 @@ case 'aluminum_foil':
                     // --- Targets ---
                     case 'murky_water': geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 32); material = new THREE.MeshStandardMaterial({ color: 0x6B4F35, transparent: true, opacity: 0.7 }); const w = new THREE.Mesh(geometry, material); w.name = "water_mesh"; model.add(w); break;
 case 'knife': {
-    // 1. Add the main Knife Image
+    // 1. Add the knife image
     const knifeSprite = loadSprite('knife.png');
     knifeSprite.name = "knife_base";
-    knifeSprite.scale.set(2, 4, 1); // Adjust size to look like a blade
+    knifeSprite.scale.set(2, 4, 1); 
     model.add(knifeSprite);
 
-    // 2. Add the Rust Spots (Brown Dots)
+    // 2. Create the rust dots group
     const rustGroup = new THREE.Group();
-    rustGroup.name = "rust_spots";
+    rustGroup.name = "rust_spots"; 
 
-for (let i = 0; i < 4; i++) {
+    // Define your FIXED positions here [x, y]
+    // These numbers are chosen to be on the left side of the blade
+    const fixedPositions = [
+        [-0.45, -1.0],
+        [-0.42, -1.4],
+        [-0.48, -0.8],
+        [-0.44, -1.7],
+        [-0.46, -1.2]
+    ];
+
+    // Loop through the fixed list instead of using random numbers
+    fixedPositions.forEach((pos) => {
         const dot = new THREE.Mesh(
             new THREE.CircleGeometry(0.06, 32), 
             new THREE.MeshBasicMaterial({ color: 0x8B4513, transparent: true })
         );
 
-        // SHIFT LEFT: We subtract 0.1 from the X position to move them left
-        const xPos = ((Math.random() - 0.5) * 0.1) - 0.45;        
-        // Keep the Y position logic to stay on the lower part of the blade
-        const yPos = (Math.random() * 2.0) - 1.8; 
-
-        dot.position.set(xPos, yPos, 0.02);
+        // Use the fixed X and Y from the list
+        dot.position.set(pos[0], pos[1], 0.02);
         rustGroup.add(dot);
-    }
+    });
+
     model.add(rustGroup);
     break;
-}             case 'lemon_battery_body': geometry = new THREE.SphereGeometry(0.5, 32, 32); material = new THREE.MeshStandardMaterial({ color: 0xFFFF00 }); const lb = new THREE.Mesh(geometry, material); lb.scale.set(1, 1.2, 1); lb.name="lemon_mesh"; model.add(lb); const s = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshBasicMaterial({color:0xFFFFFF, transparent:true, opacity:0})); s.name="spark_mesh"; s.position.y=0.5; model.add(s); break;
+}           case 'lemon_battery_body': geometry = new THREE.SphereGeometry(0.5, 32, 32); material = new THREE.MeshStandardMaterial({ color: 0xFFFF00 }); const lb = new THREE.Mesh(geometry, material); lb.scale.set(1, 1.2, 1); lb.name="lemon_mesh"; model.add(lb); const s = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshBasicMaterial({color:0xFFFFFF, transparent:true, opacity:0})); s.name="spark_mesh"; s.position.y=0.5; model.add(s); break;
                     case 'peroxide_beaker': geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 32); material = new THREE.MeshStandardMaterial({ color: 0xADD8E6, transparent: true, opacity: 0.5 }); model.add(new THREE.Mesh(geometry, material)); const fG = new THREE.CylinderGeometry(0.45, 0.45, 0.1, 32); const fM = new THREE.MeshStandardMaterial({color:0xFFFFFF}); const f = new THREE.Mesh(fG,fM); f.name="foam_mesh"; f.position.y=-0.4; model.add(f); break;
                     case 'kno3_pile': geometry = new THREE.ConeGeometry(0.5, 0.4, 32); material = new THREE.MeshStandardMaterial({ color: 0x964B00 }); model.add(new THREE.Mesh(geometry, material)); const smG = new THREE.CylinderGeometry(0.1, 1, 0.1, 32); const smM = new THREE.MeshStandardMaterial({color:0x888888, transparent:true, opacity:0}); const sm=new THREE.Mesh(smG,smM); sm.name="smoke_mesh"; model.add(sm); break;
                     case 'vinegar_bottle': geometry = new THREE.CylinderGeometry(0.4, 0.4, 1.2, 32); material = new THREE.MeshStandardMaterial({color: 0xF5F5DC, transparent: true, opacity: 0.6}); model.add(new THREE.Mesh(geometry, material)); const balG = new THREE.SphereGeometry(0.2, 32, 32); const balM = new THREE.MeshStandardMaterial({color:0xFF4136, opacity:0.8}); const bal = new THREE.Mesh(balG, balM); bal.name="balloon_mesh"; bal.position.y=0.7; model.add(bal); break;
@@ -983,6 +991,7 @@ case 'knife': {
     </script>
 </body>
 </html>
+
 
 
 
