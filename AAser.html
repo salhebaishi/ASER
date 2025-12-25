@@ -761,14 +761,14 @@ case 'knife': {
     const rustGroup = new THREE.Group();
     rustGroup.name = "rust_spots";
 
-for (let i = 0; i < 5; i++) {
+for (let i = 0; i < 4; i++) {
         const dot = new THREE.Mesh(
             new THREE.CircleGeometry(0.06, 32), 
             new THREE.MeshBasicMaterial({ color: 0x8B4513, transparent: true })
         );
 
         // SHIFT LEFT: We subtract 0.1 from the X position to move them left
-        const xPos = ((Math.random() - 0.5) * 0.2) - 0.1; 
+        const xPos = ((Math.random() - 0.5) * 0.2) - 0.25; 
         
         // Keep the Y position logic to stay on the lower part of the blade
         const yPos = (Math.random() * 1.5) - 1.8; 
@@ -984,6 +984,7 @@ case 'knife': {
     </script>
 </body>
 </html>
+
 
 
 
