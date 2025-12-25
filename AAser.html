@@ -687,14 +687,15 @@ case 'purification_powder': { // Added brackets to create a safe scope
     break;
 }
 
-case 'lemon_half': 
-    geometry = new THREE.SphereGeometry(0.4, 32, 32, 0, Math.PI); 
-    material = new THREE.MeshStandardMaterial({ color: 0xFFFF00 }); 
-    const l = new THREE.Mesh(geometry, material); 
-    l.rotation.z = Math.PI / 2; 
-    model.add(l); 
+case 'lemon_half': { // Added brackets to create a safe scope
+    const loader = new THREE.TextureLoader();
+    const texture = loader.load('lemon.WEBP');
+    const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+    const sprite = new THREE.Sprite(spriteMaterial);
+    sprite.scale.set(1.5, 1.5, 1); 
+    model.add(sprite);
     break;
-
+}
 case 'electrodes': 
     const cG = new THREE.CylinderGeometry(0.2, 0.2, 0.04, 16); 
     const cM = new THREE.MeshStandardMaterial({ color: 0xB87333 }); 
@@ -941,3 +942,4 @@ case 'aluminum_foil':
     </script>
 </body>
 </html>
+
