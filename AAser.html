@@ -22,7 +22,6 @@
         .modal-content { background-color: #1f2937; padding: 2rem; border-radius: 1rem; width: 90%; max-width: 500px; border: 1px solid #4b5563; }
         .progress-bar-container { width: 100%; background-color: #374151; border-radius: 9999px; height: 0.75rem; }
         .progress-bar { background: linear-gradient(to right, #34d399, #10b981); height: 100%; border-radius: 9999px; transition: width 0.5s ease-in-out; }
-        #badge-toast { position: fixed; bottom: 120px; left: 50%; transform: translateX(-50%); background-color: #6d28d9; color: white; padding: 1rem 1.5rem; border-radius: 9999px; font-weight: 600; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); z-index: 100; transition: opacity 0.5s, transform 0.5s; }
         .object-label { position: absolute; color: white; background: rgba(0, 0, 0, 0.6); padding: 4px 8px; border-radius: 4px; font-size: 14px; text-align: center; transform: translateX(-50%) translateY(-120%); display: none; pointer-events: none; text-transform: capitalize; }
         .backpack-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 1rem; max-height: 40vh; overflow-y: auto; margin-top: 1rem; }
         .backpack-item { background-color: #374151; border: 1px solid #4b5563; border-radius: 0.5rem; padding: 0.5rem; text-align: center; cursor: pointer; transition: background-color 0.2s, transform 0.2s; }
@@ -102,10 +101,11 @@
         let mixer, scene, camera, renderer;
         const clock = new THREE.Clock();
         let characterName = "Survivor";
-        let draggableObject = null, targetObject = null, currentlyDraggedObject = null;
-        let isDragging = false;
+        let draggableObject = null, targetObject = null, currentlyDraggedObject = null, isDragging = false;
         const initialPositions = new Map();
-        let level = 1, badges = [], inventory = ['aluminum_foil', 'baking_soda', 'cabbage_dropper', 'catalyst_pouch', 'dirty_water_cup', 'drain_cleaner', 'electrodes', 'heat_source', 'lemon_half', 'purification_powder', 'sugar_pile', 'water_cup'].sort();
+        
+        // --- Updated Inventory (Added salty_water) ---
+        let inventory = ['aluminum_foil', 'baking_soda', 'cabbage_dropper', 'catalyst_pouch', 'dirty_water_cup', 'drain_cleaner', 'electrodes', 'lemon_half', 'purification_powder', 'salty_water', 'sugar_pile', 'water_cup'].sort();
 
         const handTrackingManager = {
             hands: null, latestResults: null, isPinching: false,
@@ -134,19 +134,20 @@
         const soundManager = {
             synth: null, isInitialized: false,
             async initialize() { await window.Tone.start(); this.synth = new window.Tone.PolySynth(window.Tone.Synth).toDestination(); this.isInitialized = true; },
-            playSuccess() { if(this.isInitialized) this.synth.triggerAttackRelease(["C5", "E5", "G5"], "8n"); },
-            playEncouragement() { if(this.isInitialized) this.synth.triggerAttackRelease("A3", "8n"); }
+            playSuccess() { if(this.isInitialized) this.synth.triggerAttackRelease(["C5", "E5", "G5"], "8n"); }
         };
 
         const storyData = [
-            { title: "No Water to Drink!", text: "{NAME} needs clean water. Use the heat source to boil the water.", actionText: "Begin Distillation", interactionType: 'drag', models: { draggable: 'heat_source', target: 'salty_water' }, reaction: "H₂O(l) + Heat ⟶ H₂O(g)" },
-            { title: "Final Challenge: The Quiz", text: "Test your knowledge.", actionText: "Start the Quiz", models: null }
+            { 
+                title: "No Water to Drink!", 
+                text: "{NAME} needs clean water. Drag the SALTY WATER from your backpack onto the HEAT SOURCE to start boiling.", 
+                actionText: "Begin Distillation", 
+                interactionType: 'drag', 
+                models: { draggable: 'salty_water', target: 'heat_source' }, 
+                reaction: "H₂O(l) + Heat ⟶ Steam" 
+            },
+            { title: "Challenge Complete", text: "You have purified the water and survived.", actionText: "Restart", models: null }
         ];
-
-        const gameManager = {
-            levelUp() { level++; document.getElementById('level-display').textContent = level; soundManager.playSuccess(); },
-            updateProgress(step) { document.getElementById('progress-bar').style.width = `${(step / (storyData.length - 1)) * 100}%`; }
-        };
 
         const arManager = {
             async init(isArMode = true) {
@@ -155,7 +156,7 @@
                 camera.position.z = 5;
                 renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('canvas'), alpha: isArMode });
                 renderer.setSize(window.innerWidth, window.innerHeight);
-                scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+                scene.add(new THREE.AmbientLight(0xffffff, 1.0));
                 if (isArMode) handTrackingManager.initialize(document.getElementById('video'));
                 document.getElementById('ar-container').classList.remove('hidden');
                 document.getElementById('ui-overlay').classList.remove('hidden');
@@ -174,27 +175,22 @@
                 if (!fingerPos) return;
                 const fingerNDC = { x: (fingerPos.x / window.innerWidth) * 2 - 1, y: -(fingerPos.y / window.innerHeight) * 2 + 1 };
                 if (handTrackingManager.isPinching) {
-                    if (!isDragging) {
-                        const checkObjects = [draggableObject, targetObject].filter(o => o);
-                        for (const obj of checkObjects) {
-                            const objPos = new THREE.Vector3();
-                            obj.getWorldPosition(objPos).project(camera);
-                            if (Math.hypot(fingerNDC.x - objPos.x, fingerNDC.y - objPos.y) < 0.2) {
-                                if (storyData[currentStep].interactionType === 'drag' && obj === draggableObject) {
-                                    isDragging = true; currentlyDraggedObject = obj; return;
-                                }
-                            }
+                    if (!isDragging && draggableObject) {
+                        const objPos = new THREE.Vector3();
+                        draggableObject.getWorldPosition(objPos).project(camera);
+                        if (Math.hypot(fingerNDC.x - objPos.x, fingerNDC.y - objPos.y) < 0.2) {
+                            isDragging = true; currentlyDraggedObject = draggableObject;
                         }
-                    } else {
+                    } else if (isDragging) {
                         const vec = new THREE.Vector3(fingerNDC.x, fingerNDC.y, 0.5).unproject(camera);
                         const dir = vec.sub(camera.position).normalize();
                         currentlyDraggedObject.position.copy(camera.position.clone().add(dir.multiplyScalar(-camera.position.z / dir.z)));
                     }
-                } else if (isDragging && currentlyDraggedObject) {
+                } else if (isDragging) {
                     const tPos = new THREE.Vector3(), dPos = new THREE.Vector3();
                     targetObject.getWorldPosition(tPos).project(camera);
                     currentlyDraggedObject.getWorldPosition(dPos).project(camera);
-                    if (Math.hypot(tPos.x - dPos.x, tPos.y - dPos.y) < 0.25) storyManager.completeChallenge();
+                    if (Math.hypot(tPos.x - dPos.x, tPos.y - dPos.y) < 0.35) storyManager.completeChallenge();
                     else currentlyDraggedObject.position.copy(initialPositions.get(currentlyDraggedObject));
                     isDragging = false; currentlyDraggedObject = null;
                 }
@@ -205,33 +201,38 @@
                 el.style.left = `${(v.x * .5 + .5) * window.innerWidth}px`;
                 el.style.top = `${(v.y * -.5 + .5) * window.innerHeight}px`;
             },
-            loadStepModels(step, callback) {
-                const models = { draggable: null, target: this.createModel(step.models.target) };
-                models.target.position.set(step.interactionType === 'drag' ? 1.5 : 0, 0, -4);
-                models.target.animationClip = this.createAnimationForTarget(models.target);
-                callback(models);
-            },
             createModel(type) {
                 const model = new THREE.Group(); model.userData.name = type.replace(/_/g, ' '); model.scale.set(2, 2, 2);
                 if (type === 'heat_source') {
-                    // LOAD YOUR PNG IMAGE HERE
+                    // Load the Heat image as a Sprite
                     const texture = new THREE.TextureLoader().load('heat.png');
                     const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
                     const sprite = new THREE.Sprite(material);
+                    sprite.name = "sprite_mesh";
                     sprite.scale.set(0.8, 1, 1);
                     model.add(sprite);
+                    
+                    // Added a "steam" mesh that is hidden until reaction happens
+                    const steamG = new THREE.CylinderGeometry(0.1, 0.4, 1, 16);
+                    const steamM = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 });
+                    const steam = new THREE.Mesh(steamG, steamM);
+                    steam.name = "steam_mesh";
+                    steam.position.y = 0.5;
+                    model.add(steam);
                 } else if (type === 'salty_water') {
-                    const g = new THREE.CylinderGeometry(0.5, 0.5, 1, 32);
+                    const g = new THREE.CylinderGeometry(0.3, 0.3, 0.6, 32);
                     const m = new THREE.MeshStandardMaterial({ color: 0x87aebf, transparent: true, opacity: 0.8 });
-                    const mesh = new THREE.Mesh(g, m); mesh.name = "salty_water_mesh"; model.add(mesh);
+                    model.add(new THREE.Mesh(g, m));
                 }
                 return model;
             },
             createAnimationForTarget(model) {
-                const mesh = model.getObjectByName('salty_water_mesh');
-                if (!mesh) return null;
-                const track = new THREE.ColorKeyframeTrack(`${mesh.uuid}.material.color`, [0, 1.5], [0.5,0.6,0.7, 0.6,0.9,1.0]);
-                return new THREE.AnimationClip('anim', 2, [track]);
+                const steam = model.getObjectByName('steam_mesh');
+                if (!steam) return null;
+                // Steam rises and fades in
+                const opacityTrack = new THREE.NumberKeyframeTrack(`${steam.uuid}.material.opacity`, [0, 0.5, 1.5], [0, 0.6, 0]);
+                const scaleTrack = new THREE.VectorKeyframeTrack(`${steam.uuid}.scale`, [0, 1.5], [1,1,1, 2,4,2]);
+                return new THREE.AnimationClip('anim', 2, [opacityTrack, scaleTrack]);
             }
         };
 
@@ -240,22 +241,23 @@
                 const s = storyData[i];
                 document.getElementById('story-title').textContent = s.title.replace(/{NAME}/g, characterName);
                 document.getElementById('story-text').textContent = s.text.replace(/{NAME}/g, characterName);
-                document.getElementById('action-button').onclick = s.models ? () => this.startChallenge(s) : () => alert("End of Demo");
+                document.getElementById('action-button').onclick = s.models ? () => this.startChallenge(s) : () => window.location.reload();
             },
             startChallenge(s) {
-                if (draggableObject) scene.remove(draggableObject); if (targetObject) scene.remove(targetObject);
-                arManager.loadStepModels(s, (m) => {
-                    targetObject = m.target; scene.add(targetObject);
-                    document.getElementById('action-button').classList.add('hidden');
-                    document.getElementById('backpack-button').classList.remove('hidden');
-                });
+                targetObject = arManager.createModel(s.models.target);
+                targetObject.position.set(1.5, 0, -4);
+                targetObject.animationClip = arManager.createAnimationForTarget(targetObject);
+                scene.add(targetObject);
+                document.getElementById('action-button').classList.add('hidden');
+                document.getElementById('backpack-button').classList.remove('hidden');
             },
             completeChallenge() {
                 mixer = new THREE.AnimationMixer(targetObject);
                 mixer.clipAction(targetObject.animationClip).setLoop(THREE.LoopOnce).play();
+                soundManager.playSuccess();
                 mixer.addEventListener('finished', () => {
                     scene.remove(targetObject); scene.remove(draggableObject);
-                    currentStep++; gameManager.updateProgress(currentStep); gameManager.levelUp(); this.updateStep(currentStep);
+                    currentStep++; this.updateStep(currentStep);
                     document.getElementById('action-button').classList.remove('hidden');
                     document.getElementById('backpack-button').classList.add('hidden');
                 });
@@ -270,10 +272,11 @@
                     d.onclick = () => {
                         if (item === storyData[currentStep].models.draggable) {
                             if (draggableObject) scene.remove(draggableObject);
-                            draggableObject = arManager.createModel(item); draggableObject.position.set(-1.5, 0.5, -4);
+                            draggableObject = arManager.createModel(item);
+                            draggableObject.position.set(-1.5, 0.5, -4);
                             initialPositions.set(draggableObject, draggableObject.position.clone());
                             scene.add(draggableObject); document.getElementById('backpack-modal').classList.add('hidden');
-                        } else soundManager.playEncouragement();
+                        }
                     };
                     grid.appendChild(d);
                 });
