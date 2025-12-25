@@ -657,10 +657,12 @@
             },
 
             createModel(type) {
-                let geometry, material;
-                const model = new THREE.Group();
-                model.userData.name = type.replace(/_/g, ' ');
-                model.scale.set(2, 2, 2); // Double the size of all models
+            let geometry, material;
+            const model = new THREE.Group();
+            model.userData.name = type.replace(/_/g, ' ');
+            model.scale.set(2, 2, 2); 
+
+    const loader = new THREE.TextureLoader();
                 
                 switch (type) {
                     // --- Draggables ---
@@ -693,7 +695,7 @@ case 'lemon_half': { // Added brackets to create a safe scope
     sprite.scale.set(1.5, 1.5, 1); 
     model.add(sprite);
     break;
-}
+    }
 case 'electrodes': 
     const cG = new THREE.CylinderGeometry(0.2, 0.2, 0.04, 16); 
     const cM = new THREE.MeshStandardMaterial({ color: 0xB87333 }); 
@@ -940,5 +942,6 @@ case 'aluminum_foil':
     </script>
 </body>
 </html>
+
 
 
