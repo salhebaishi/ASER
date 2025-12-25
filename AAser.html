@@ -709,15 +709,13 @@ case 'electrodes':
     break;
 
 case 'catalyst_pouch': 
-    geometry = new THREE.BoxGeometry(0.4, 0.4, 0.1); 
-    material = new THREE.MeshStandardMaterial({ color: 0xD2B48C }); 
-    model.add(new THREE.Mesh(geometry, material)); 
+     model.add(loadSprite('powder1.png')); 
+
     break;
 
 case 'sugar_pile': 
-    geometry = new THREE.ConeGeometry(0.4, 0.5, 32); 
-    material = new THREE.MeshStandardMaterial({ color: 0xFFFFFF }); 
-    model.add(new THREE.Mesh(geometry, material)); 
+      model.add(loadSprite('sugar.png')); 
+
     break;
 
 case 'baking_soda': 
@@ -941,6 +939,7 @@ case 'aluminum_foil':
     </script>
 </body>
 </html>
+
 
 
 
