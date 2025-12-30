@@ -725,13 +725,30 @@
 
                     // --- Target Items ---
                     case 'murky_water':
-                        texture = loader.load('water.png');
-                        material = new THREE.SpriteMaterial({ map: texture, transparent: true });
-                        const waterSprite = new THREE.Sprite(material);
-                        waterSprite.name = "water_mesh"; // For animation matching
-                        waterSprite.scale.set(1, 1, 1);
-                        model.add(waterSprite);
-                        break;
+    // 1. The base water image
+    texture = loader.load('water.png');
+    material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    const waterSprite = new THREE.Sprite(material);
+    waterSprite.name = "water_mesh";
+    waterSprite.scale.set(1, 1, 1);
+    model.add(waterSprite);
+
+    // 2. Add the "Dirt/Impurities" to be removed
+    const dirtGroup = new THREE.Group();
+    dirtGroup.name = "dirt_layer";
+    
+    // Create 5 small brown "dirt" spots
+    for(let i = 0; i < 5; i++) {
+        const spot = new THREE.Mesh(
+            new THREE.CircleGeometry(0.05, 16),
+            new THREE.MeshBasicMaterial({ color: 0x4b3621, transparent: true, opacity: 0.8 })
+        );
+        // Randomize positions inside the glass
+        spot.position.set((Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4, 0.01);
+        dirtGroup.add(spot);
+    }
+    model.add(dirtGroup);
+    break;
 
                     case 'knife':
                         texture = loader.load('knife.png');
@@ -831,8 +848,29 @@
                         return new THREE.AnimationClip('anim', 2, [colorTrack, opacityTrack]);
                     }
                     case 'murky_water': 
-                        const mw = find('water_mesh');
-                        return new THREE.AnimationClip('anim', 2, [new THREE.ColorKeyframeTrack(`${mw.uuid}.material.color`, [0, 1.5], [0.42,0.31,0.21, 0.68,0.85,0.9])]);
+    const mw = find('water_mesh');
+    const dirt = find('dirt_layer'); // Find the dirt we just created
+    const tracks = [];
+
+    // Track 1: Change water color from brown/murky to clear blue
+    tracks.push(new THREE.ColorKeyframeTrack(
+        `${mw.uuid}.material.color`, 
+        [0, 1.5], 
+        [0.42, 0.31, 0.21, 0.68, 0.85, 0.9]
+    ));
+
+    // Track 2: Fade out all dirt spots
+    if (dirt) {
+        dirt.children.forEach((spot) => {
+            tracks.push(new THREE.NumberKeyframeTrack(
+                `${spot.uuid}.material.opacity`,
+                [0, 1], // Fades out over 1 second
+                [0.8, 0] // From visible to invisible
+            ));
+        });
+    }
+
+    return new THREE.AnimationClip('purify', 2, tracks);
                     
                     case 'knife': {
                         const rustGroup = find('rust_spots');
@@ -937,4 +975,5 @@
     </script>
 </body>
 </html>
+
 
