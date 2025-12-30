@@ -108,18 +108,20 @@
             transition: opacity 0.5s, transform 0.5s;
         }
         .object-label {
-            position: absolute;
-            color: white;
-            background: rgba(0, 0, 0, 0.6);
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 14px;
-            text-align: center;
-            transform: translateX(-50%) translateY(-120%); /* Position above the object center */
-            display: none; /* Hidden by default */
-            pointer-events: none;
-            text-transform: capitalize;
-        }
+    position: absolute;
+    color: white;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    text-align: center;
+    /* Change translateY from -120% to -250% to push it higher */
+    transform: translateX(-50%) translateY(-250%); 
+    display: none; 
+    pointer-events: none;
+    text-transform: capitalize;
+    z-index: 20; /* Ensure it stays on top of other UI */
+}
         /* Backpack styles */
         .backpack-grid {
             display: grid;
@@ -1018,6 +1020,7 @@
     </script>
 </body>
 </html>
+
 
 
 
