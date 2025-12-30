@@ -656,294 +656,214 @@
                 callback(models);
             },
 
-           createModel(type) {
-    let geometry, material;
-    const model = new THREE.Group();
-    model.userData.name = type.replace(/_/g, ' ');
-    model.scale.set(2, 2, 2); 
+        createModel(type) {
+                const model = new THREE.Group();
+                model.userData.name = type.replace(/_/g, ' ');
+                model.scale.set(2, 2, 2); 
 
-    const loader = new THREE.TextureLoader();
+                let geometry, material, texture;
+                const loader = new THREE.TextureLoader();
 
-    // Helper function to handle image loading and errors
-    const loadSprite = (fileName) => {
-        const texture = loader.load(
-            fileName, 
-            () => console.log(`Success: ${fileName} loaded!`),
-            undefined,
-            (err) => console.error(`Error: Could not find ${fileName}. Check the filename and extension carefully.`)
-        );
-        const spriteMaterial = new THREE.SpriteMaterial({ map: texture, transparent: true });
-        const sprite = new THREE.Sprite(spriteMaterial);
-        sprite.scale.set(1.5, 1.5, 1);
-        return sprite;
-    };
+                // Helper for loading sprites consistently
+                const loadSprite = (fileName) => {
+                    const tex = loader.load(
+                        fileName, 
+                        () => console.log(`Success: ${fileName} loaded!`),
+                        undefined,
+                        (err) => console.error(`Error: Could not find ${fileName}.`)
+                    );
+                    const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+                    const sprite = new THREE.Sprite(spriteMat);
+                    sprite.scale.set(1.5, 1.5, 1);
+                    return sprite;
+                };
 
-    switch (type) {
-        case 'heat_source': {
-            model.add(loadSprite('heat.png'));
-            break;
-        }
+                switch (type) {
+                    // --- Draggable Items ---
+                    case 'heat_source': model.add(loadSprite('heat.png')); break;
+                    case 'purification_powder': model.add(loadSprite('powder.png')); break;
+                    case 'lemon_half': model.add(loadSprite('lemon.png')); break;
+                    case 'catalyst_pouch': model.add(loadSprite('powder1.png')); break;
+                    case 'sugar_pile': model.add(loadSprite('sugar.png')); break;
+                    
+                    case 'electrodes': 
+                        geometry = new THREE.CylinderGeometry(0.2, 0.2, 0.04, 16); 
+                        material = new THREE.MeshStandardMaterial({ color: 0xB87333 }); 
+                        const c = new THREE.Mesh(geometry, material); 
+                        c.position.y = 0.2; 
+                        model.add(c); 
+                        const nG = new THREE.CylinderGeometry(0.05, 0.05, 0.6, 8); 
+                        const n = new THREE.Mesh(nG, new THREE.MeshStandardMaterial({color: 0xD3D3D3})); 
+                        n.position.y = -0.2; 
+                        model.add(n); 
+                        break;
 
-        case 'purification_powder': {
-            // Check if your file is actually .JPG or .jpg
-            model.add(loadSprite('powder.png')); 
-            break;
-        }
+                    case 'baking_soda': 
+                        geometry = new THREE.BoxGeometry(0.4, 0.6, 0.2); 
+                        model.add(new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: 0xF0EAD6 }))); 
+                        break;
 
-        case 'lemon_half': { 
-            // Check if your file is actually .WEBP or .webp
-            model.add(loadSprite('lemon.png')); 
-            break;
-        }
-case 'electrodes': 
-    const cG = new THREE.CylinderGeometry(0.2, 0.2, 0.04, 16); 
-    const cM = new THREE.MeshStandardMaterial({ color: 0xB87333 }); 
-    const c = new THREE.Mesh(cG,cM); 
-    c.position.y=0.2; 
-    model.add(c); 
-    const nG = new THREE.CylinderGeometry(0.05, 0.05, 0.6, 8); 
-    const nM = new THREE.MeshStandardMaterial({color:0xD3D3D3}); 
-    const n = new THREE.Mesh(nG,nM); 
-    n.position.y=-0.2; 
-    model.add(n); 
-    break;
+                    case 'dirty_water_cup': 
+                        geometry = new THREE.CylinderGeometry(0.3, 0.3, 0.6, 32); 
+                        model.add(new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: 0x6B4F35, transparent:true, opacity:0.8 }))); 
+                        break;
 
-case 'catalyst_pouch': 
-     model.add(loadSprite('powder1.png')); 
+                    case 'cabbage_dropper': 
+                        geometry = new THREE.CylinderGeometry(0.05, 0.05, 0.8, 16); 
+                        model.add(new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: 0x4B0082 }))); 
+                        break;
 
-    break;
+                    case 'water_cup': 
+                        geometry = new THREE.CylinderGeometry(0.3, 0.3, 0.6, 32); 
+                        model.add(new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: 0xADD8E6, transparent:true, opacity:0.5 }))); 
+                        break;
 
-case 'sugar_pile': 
-      model.add(loadSprite('sugar.png')); 
+                    case 'aluminum_foil': 
+                        geometry = new THREE.BoxGeometry(0.5, 0.5, 0.05); 
+                        model.add(new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9, roughness: 0.2 }))); 
+                        break;
 
-    break;
+                    // --- Target Items ---
+                    case 'murky_water':
+                        texture = loader.load('water.png');
+                        material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+                        const waterSprite = new THREE.Sprite(material);
+                        waterSprite.name = "water_mesh"; // For animation matching
+                        waterSprite.scale.set(1, 1, 1);
+                        model.add(waterSprite);
+                        break;
 
-case 'baking_soda': 
-    geometry = new THREE.BoxGeometry(0.4, 0.6, 0.2); 
-    material = new THREE.MeshStandardMaterial({ color: 0xF0EAD6 }); 
-    model.add(new THREE.Mesh(geometry, material)); 
-    break;
+                    case 'knife':
+                        texture = loader.load('knife.png');
+                        const knifeSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
+                        knifeSprite.name = "knife_base";
+                        knifeSprite.scale.set(1.5, 3, 1);
+                        model.add(knifeSprite);
 
-case 'dirty_water_cup': 
-    geometry = new THREE.CylinderGeometry(0.3, 0.3, 0.6, 32); 
-    material = new THREE.MeshStandardMaterial({ color: 0x6B4F35, transparent:true, opacity:0.8 }); 
-    model.add(new THREE.Mesh(geometry, material)); 
-    break;
+                        const rustGroup = new THREE.Group();
+                        rustGroup.name = "rust_spots";
+                        [[-0.45, -1.0], [-0.42, -1.4], [-0.48, -0.8]].forEach((pos) => {
+                            const dot = new THREE.Mesh(new THREE.CircleGeometry(0.06, 32), new THREE.MeshBasicMaterial({ color: 0x8B4513, transparent: true }));
+                            dot.position.set(pos[0], pos[1], 0.02);
+                            rustGroup.add(dot);
+                        });
+                        model.add(rustGroup);
+                        break;
 
-case 'cabbage_dropper': 
-    geometry = new THREE.CylinderGeometry(0.05, 0.05, 0.8, 16); 
-    material = new THREE.MeshStandardMaterial({ color: 0x4B0082 }); 
-    model.add(new THREE.Mesh(geometry, material)); 
-    break;
+                    case 'lemon_battery_body':
+                        geometry = new THREE.SphereGeometry(0.5, 32, 32);
+                        const lb = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: 0xFFFF00 }));
+                        lb.scale.set(1, 1.2, 1);
+                        lb.name = "lemon_mesh";
+                        model.add(lb);
+                        const spark = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshBasicMaterial({color:0xFFFFFF, transparent:true, opacity:0}));
+                        spark.name = "spark_mesh";
+                        spark.position.y = 0.5;
+                        model.add(spark);
+                        break;
 
-case 'water_cup': 
-    geometry = new THREE.CylinderGeometry(0.3, 0.3, 0.6, 32); 
-    material = new THREE.MeshStandardMaterial({ color: 0xADD8E6, transparent:true, opacity:0.5 }); 
-    model.add(new THREE.Mesh(geometry, material)); 
-    break;
+                    case 'peroxide_beaker':
+                        geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 32);
+                        model.add(new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: 0xADD8E6, transparent: true, opacity: 0.5 })));
+                        const f = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.1, 32), new THREE.MeshStandardMaterial({color:0xFFFFFF}));
+                        f.name = "foam_mesh";
+                        f.position.y = -0.4;
+                        model.add(f);
+                        break;
 
-case 'aluminum_foil': 
-    geometry = new THREE.BoxGeometry(0.5, 0.5, 0.05); 
-    material = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9, roughness: 0.2 }); 
-    model.add(new THREE.Mesh(geometry, material)); 
-    break;
+                    case 'kno3_pile':
+                        model.add(new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.4, 32), new THREE.MeshStandardMaterial({ color: 0x964B00 })));
+                        const sm = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 1, 0.1, 32), new THREE.MeshStandardMaterial({color:0x888888, transparent:true, opacity:0}));
+                        sm.name = "smoke_mesh";
+                        model.add(sm);
+                        break;
 
-                    // --- Targets ---
-createModel(type) {
-    const model = new THREE.Group();
-    model.userData.name = type.replace(/_/g, ' ');
-    model.scale.set(2, 2, 2);
+                    case 'vinegar_bottle':
+                        model.add(new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1.2, 32), new THREE.MeshStandardMaterial({color: 0xF5F5DC, transparent: true, opacity: 0.6})));
+                        const bal = new THREE.Mesh(new THREE.SphereGeometry(0.2, 32, 32), new THREE.MeshStandardMaterial({color:0xFF4136, opacity:0.8}));
+                        bal.name = "balloon_mesh";
+                        bal.position.y = 0.7;
+                        model.add(bal);
+                        break;
 
-    // Declare variables once to be reused in the switch cases
-    let geometry, material, texture;
-    const loader = new THREE.TextureLoader();
+                    case 'salty_water':
+                        const sw = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1, 32), new THREE.MeshStandardMaterial({ color: 0x87aebf, transparent: true, opacity: 0.8 }));
+                        sw.name = "salty_water_mesh";
+                        model.add(sw);
+                        break;
+                    
+                    case 'cold_pack': 
+                        const cp = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.2), new THREE.MeshStandardMaterial({ color: 0x4169E1, transparent: true }));
+                        cp.name = "pack_mesh";
+                        model.add(cp);
+                        break;
 
-    switch (type) {
-        case 'murky_water':
-            texture = loader.load('water.png');
-            material = new THREE.SpriteMaterial({ map: texture, transparent: true });
-            const waterSprite = new THREE.Sprite(material);
-            waterSprite.scale.set(1, 1, 1);
-            model.add(waterSprite);
-            break;
+                    case 'heat_pack':
+                        const hp = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.2), new THREE.MeshStandardMaterial({ color: 0xB22222, transparent: true }));
+                        hp.name = "heat_pack_mesh";
+                        model.add(hp);
+                        break;
 
-        case 'knife':
-            // 1. Add the knife image using standard TextureLoader
-            texture = loader.load('knife.png');
-            const knifeMat = new THREE.SpriteMaterial({ map: texture, transparent: true });
-            const knifeSprite = new THREE.Sprite(knifeMat);
-            knifeSprite.name = "knife_base";
-            knifeSprite.scale.set(1.5, 3, 1); // Adjusted scale for better AR visibility
-            model.add(knifeSprite);
+                    case 'magnesium':
+                        const mg = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.15, 0.03), new THREE.MeshStandardMaterial({ color: 0xeeeeee }));
+                        mg.name = "strip_mesh";
+                        model.add(mg);
+                        break;
+                }
 
-            // 2. Add fixed rust spots
-            const rustGroup = new THREE.Group();
-            rustGroup.name = "rust_spots";
-            const fixedPositions = [[-0.45, -1.0], [-0.42, -1.4], [-0.48, -0.8]];
-
-            fixedPositions.forEach((pos) => {
-                const dot = new THREE.Mesh(
-                    new THREE.CircleGeometry(0.06, 32),
-                    new THREE.MeshBasicMaterial({ color: 0x8B4513, transparent: true })
-                );
-                dot.position.set(pos[0], pos[1], 0.02); // Small Z offset to stay "on top"
-                rustGroup.add(dot);
-            });
-            model.add(rustGroup);
-            break;
-
-        case 'lemon_battery_body':
-            geometry = new THREE.SphereGeometry(0.5, 32, 32);
-            material = new THREE.MeshStandardMaterial({ color: 0xFFFF00 });
-            const lb = new THREE.Mesh(geometry, material);
-            lb.scale.set(1, 1.2, 1);
-            lb.name = "lemon_mesh";
-            model.add(lb);
-            
-            // Spark mesh for later animation
-            const s = new THREE.Mesh(
-                new THREE.SphereGeometry(0.1, 8, 8), 
-                new THREE.MeshBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0 })
-            );
-            s.name = "spark_mesh";
-            s.position.y = 0.5;
-            model.add(s);
-            break;
-
-        case 'peroxide_beaker':
-            geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 32);
-            material = new THREE.MeshStandardMaterial({ color: 0xADD8E6, transparent: true, opacity: 0.5 });
-            model.add(new THREE.Mesh(geometry, material));
-            
-            const fG = new THREE.CylinderGeometry(0.45, 0.45, 0.1, 32);
-            const fM = new THREE.MeshStandardMaterial({ color: 0xFFFFFF });
-            const f = new THREE.Mesh(fG, fM);
-            f.name = "foam_mesh";
-            f.position.y = -0.4;
-            model.add(f);
-            break;
-
-        case 'kno3_pile':
-            geometry = new THREE.ConeGeometry(0.5, 0.4, 32);
-            material = new THREE.MeshStandardMaterial({ color: 0x964B00 });
-            model.add(new THREE.Mesh(geometry, material));
-            
-            const smG = new THREE.CylinderGeometry(0.1, 1, 0.1, 32);
-            const smM = new THREE.MeshStandardMaterial({ color: 0x888888, transparent: true, opacity: 0 });
-            const sm = new THREE.Mesh(smG, smM);
-            sm.name = "smoke_mesh";
-            model.add(sm);
-            break;
-
-        case 'vinegar_bottle':
-            geometry = new THREE.CylinderGeometry(0.4, 0.4, 1.2, 32);
-            material = new THREE.MeshStandardMaterial({ color: 0xF5F5DC, transparent: true, opacity: 0.6 });
-            model.add(new THREE.Mesh(geometry, material));
-            
-            const balG = new THREE.SphereGeometry(0.2, 32, 32);
-            const balM = new THREE.MeshStandardMaterial({ color: 0xFF4136, opacity: 0.8 });
-            const bal = new THREE.Mesh(balG, balM);
-            bal.name = "balloon_mesh";
-            bal.position.y = 0.7;
-            model.add(bal);
-            break;
-
-        case 'salty_water':
-            geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 32);
-            material = new THREE.MeshStandardMaterial({ color: 0x87aebf, transparent: true, opacity: 0.8 });
-            const sw = new THREE.Mesh(geometry, material);
-            sw.name = "salty_water_mesh";
-            model.add(sw);
-            break;
-
-        // ... Add other cases (sand_filter, cao_powder, etc.) using the same geometry/material pattern
-    }
-
-    // Final lighting pass
-    model.traverse((child) => {
-        if (child.isMesh && child.material.isMeshStandardMaterial) {
-            child.material.emissive = new THREE.Color(0x000000);
-        }
-    });
-
-    return model;
-},
+                model.traverse((child) => {
+                    if(child.isMesh && child.material.isMeshStandardMaterial) {
+                         child.material.emissive = new THREE.Color(0x000000);
+                    }
+                });
+                return model;
+            },
 
             createAnimationForTarget(modelInstance) {
                 const find = (name) => modelInstance.getObjectByProperty('name', name);
                 const type = modelInstance.userData.name.replace(/ /g, '_');
+                
                 switch(type) {
                     case 'salty_water': {
                         const waterMesh = find('salty_water_mesh');
-                        const startColor = new THREE.Color(0x87aebf);
-                        const endColor = new THREE.Color(0xADD8E6); // Clearer water blue
-                        const colorTrack = new THREE.ColorKeyframeTrack(
-                            `${waterMesh.uuid}.material.color`,
-                            [0, 1.5],
-                            [startColor.r, startColor.g, startColor.b, endColor.r, endColor.g, endColor.b]
-                        );
-                        const opacityTrack = new THREE.NumberKeyframeTrack(
-                            `${waterMesh.uuid}.material.opacity`,
-                            [0, 1.5],
-                            [0.8, 0.4] // Becomes more transparent
-                        );
+                        const colorTrack = new THREE.ColorKeyframeTrack(`${waterMesh.uuid}.material.color`, [0, 1.5], [0.53,0.68,0.75, 0.68,0.85,0.9]);
+                        const opacityTrack = new THREE.NumberKeyframeTrack(`${waterMesh.uuid}.material.opacity`, [0, 1.5], [0.8, 0.4]);
                         return new THREE.AnimationClip('anim', 2, [colorTrack, opacityTrack]);
                     }
-                    case 'murky_water': return new THREE.AnimationClip('anim', 2, [new THREE.ColorKeyframeTrack(`${find('water_mesh').uuid}.material.color`, [0, 1.5], [0.42,0.31,0.21, 0.68,0.85,0.9])]);
-// --- Inside createAnimationForTarget(modelInstance) switch ---
-
-case 'knife': {
-    const rustGroup = find('rust_spots');
-    const tracks = [];
-
-    if (rustGroup) {
-        // Create an animation track for every rust spot to fade out
-        rustGroup.children.forEach((dot) => {
-            const opacityTrack = new THREE.NumberKeyframeTrack(
-                `${dot.uuid}.material.opacity`,
-                [0, 1], // Fades out over 1 second
-                [1, 0]  // From fully visible to invisible
-            );
-            tracks.push(opacityTrack);
-        });
-    }
-
-    return new THREE.AnimationClip('clean_knife', 1.5, tracks);
-}                    case 'lemon_battery_body': const spark = find('spark_mesh'); const sparkPosTrack = new THREE.VectorKeyframeTrack(`${spark.uuid}.position`, [0, 0.25, 0.5, 0.75, 1, 1.25, 1.5], [0,0.5,0,  -0.2,0.5,0,  0.2,0.5,0,  -0.1,0.5,0.1,  0.1,0.5,-0.1, -0.2,0.5,0.1, 0,0.5,0]); const sparkOpacityTrack = new THREE.NumberKeyframeTrack(`${spark.uuid}.material.opacity`, [0, 0.2, 0.4, 0.6, 0.8, 1, 1.2, 1.5], [0, 1, 0, 1, 0, 1, 0, 0]); return new THREE.AnimationClip('anim', 2, [sparkPosTrack, sparkOpacityTrack]);
-                    case 'peroxide_beaker': const f = find("foam_mesh"); return new THREE.AnimationClip('anim', 2, [new THREE.VectorKeyframeTrack(`${f.uuid}.scale`, [0, 1.5], [1,1,1, 1,20,1]), new THREE.VectorKeyframeTrack(`${f.uuid}.position`, [0, 1.5], [0,-0.4,0, 0,0.5,0])]);
-                    case 'kno3_pile': const sm = find("smoke_mesh"); return new THREE.AnimationClip('anim', 2.5, [new THREE.VectorKeyframeTrack(`${sm.uuid}.scale`, [0, 2], [1,1,1, 1,30,1]), new THREE.VectorKeyframeTrack(`${sm.uuid}.position`, [0, 2], [0,0,0, 0,1.5,0]), new THREE.NumberKeyframeTrack(`${sm.uuid}.material.opacity`, [0, 0.5, 2], [0, 0.6, 0])]);
-                    case 'cold_pack': const p = find("pack_mesh"); const fc = new THREE.Color(0xADD8E6); const coldColorTrack = new THREE.ColorKeyframeTrack(`${p.uuid}.material.color`, [0, 1.5], [p.material.color.r, p.material.color.g, p.material.color.b, fc.r, fc.g, fc.b]); const coldOpacityTrack = new THREE.NumberKeyframeTrack(`${p.uuid}.material.opacity`, [0, 1.5], [1, 0.9]); const coldScaleTrack = new THREE.VectorKeyframeTrack(`${p.uuid}.scale`, [0, 0.5, 1, 1.5], [1,1,1, 0.98,0.98,0.98, 1,1,1, 0.98,0.98,0.98]); return new THREE.AnimationClip('anim', 2, [coldColorTrack, coldOpacityTrack, coldScaleTrack]);
-                    case 'heat_pack': const hp = find("heat_pack_mesh"); const hc = new THREE.Color(0xFF8C00); const heatColorTrack = new THREE.ColorKeyframeTrack(`${hp.uuid}.material.color`, [0, 1.5], [hp.material.color.r, hp.material.color.g, hp.material.color.b, hc.r, hc.g, hc.b]); const heatScaleTrack = new THREE.VectorKeyframeTrack(`${hp.uuid}.scale`, [0, 0.5, 1, 1.5], [1,1,1, 1.05,1.05,1.05, 1,1,1, 1.05,1.05,1.05]); return new THREE.AnimationClip('anim', 2, [heatColorTrack, heatScaleTrack]);
-                    case 'magnesium': {
-                        const m = find("strip_mesh");
-                        const originalColor = m.material.color.clone();
-                        const fireColor = new THREE.Color(0xff0000);
-                        const burntColor = new THREE.Color(0x222222);
-                        const emissiveOff = new THREE.Color(0x000000);
-
-                        // Animate the base color: gray -> red -> burnt
-                        const colorTrack = new THREE.ColorKeyframeTrack(
-                            `${m.uuid}.material.color`,
-                            [0, 0.1, 1.0, 1.5],
-                            [originalColor.r, originalColor.g, originalColor.b, fireColor.r, fireColor.g, fireColor.b, burntColor.r, burntColor.g, burntColor.b, burntColor.r, burntColor.g, burntColor.b]
-                        );
-
-                        // Animate the glow: off -> red -> off
-                        const emissiveTrack = new THREE.ColorKeyframeTrack(
-                            `${m.uuid}.material.emissive`,
-                            [0, 0.1, 1.0, 1.5],
-                            [emissiveOff.r, emissiveOff.g, emissiveOff.b, fireColor.r, fireColor.g, fireColor.b, fireColor.r, fireColor.g, fireColor.b, emissiveOff.r, emissiveOff.g, emissiveOff.b]
-                        );
-
-                        const scaleTrack = new THREE.VectorKeyframeTrack(`${m.uuid}.scale`, [0, 0.1, 0.2], [1,1,1, 1.2,1.2,1.2, 1,1,1]);
-                        return new THREE.AnimationClip('anim', 1.5, [colorTrack, emissiveTrack, scaleTrack]);
+                    case 'murky_water': 
+                        const mw = find('water_mesh');
+                        return new THREE.AnimationClip('anim', 2, [new THREE.ColorKeyframeTrack(`${mw.uuid}.material.color`, [0, 1.5], [0.42,0.31,0.21, 0.68,0.85,0.9])]);
+                    
+                    case 'knife': {
+                        const rustGroup = find('rust_spots');
+                        const tracks = [];
+                        if (rustGroup) {
+                            rustGroup.children.forEach((dot) => {
+                                tracks.push(new THREE.NumberKeyframeTrack(`${dot.uuid}.material.opacity`, [0, 1], [1, 0]));
+                            });
+                        }
+                        return new THREE.AnimationClip('clean_knife', 1.5, tracks);
                     }
-                    case 'vinegar_bottle': const bal = find("balloon_mesh"); return new THREE.AnimationClip('anim', 2, [new THREE.VectorKeyframeTrack(`${bal.uuid}.scale`, [0, 1.5], [1,1,1, 5,5,5])]);
-                    case 'sand_filter': const cleanW = find("clean_water_mesh"); return new THREE.AnimationClip('anim', 2, [new THREE.NumberKeyframeTrack(`${cleanW.uuid}.material.opacity`, [0, 1.5], [0, 0.7])]);
-                    case 'water_sample': const ws = find("sample_mesh"); const rc = new THREE.Color(0xFF0000); return new THREE.AnimationClip('anim', 1.5, [new THREE.ColorKeyframeTrack(`${ws.uuid}.material.color`, [0, 1], [ws.material.color.r, ws.material.color.g, ws.material.color.b, rc.r, rc.g, rc.b])]);
-                    case 'cao_powder': const cao = find("cao_mesh"); const hot = new THREE.Color(0xFF4500); return new THREE.AnimationClip('anim', 1.5, [new THREE.ColorKeyframeTrack(`${cao.uuid}.material.emissive`, [0, 0.5, 1], [0,0,0, hot.r, hot.g, hot.b, 0,0,0])]);
-                    case 'distillation_setup': return new THREE.AnimationClip('anim', 2, [new THREE.NumberKeyframeTrack(`${find('distill_mesh').uuid}.material.opacity`, [0, 1.5], [0.5, 0])]);
-                    case 'drain_cleaner': return new THREE.AnimationClip('anim', 2, []); // Placeholder, as this model has no visual change itself
+                    case 'lemon_battery_body': 
+                        const spark = find('spark_mesh');
+                        return new THREE.AnimationClip('anim', 2, [
+                            new THREE.VectorKeyframeTrack(`${spark.uuid}.position`, [0, 0.5, 1, 1.5], [0,0.5,0, 0.2,0.5,0, -0.2,0.5,0, 0,0.5,0]),
+                            new THREE.NumberKeyframeTrack(`${spark.uuid}.material.opacity`, [0, 0.2, 0.8, 1.5], [0, 1, 1, 0])
+                        ]);
+                    case 'peroxide_beaker': 
+                        const f = find("foam_mesh");
+                        return new THREE.AnimationClip('anim', 2, [new THREE.VectorKeyframeTrack(`${f.uuid}.scale`, [0, 1.5], [1,1,1, 1,20,1]), new THREE.VectorKeyframeTrack(`${f.uuid}.position`, [0, 1.5], [0,-0.4,0, 0,0.5,0])]);
+                    case 'kno3_pile': 
+                        const sm = find("smoke_mesh");
+                        return new THREE.AnimationClip('anim', 2.5, [new THREE.VectorKeyframeTrack(`${sm.uuid}.scale`, [0, 2], [1,1,1, 1,30,1]), new THREE.NumberKeyframeTrack(`${sm.uuid}.material.opacity`, [0, 0.5, 2], [0, 0.6, 0])]);
+                    case 'vinegar_bottle': 
+                        return new THREE.AnimationClip('anim', 2, [new THREE.VectorKeyframeTrack(`${find("balloon_mesh").uuid}.scale`, [0, 1.5], [1,1,1, 5,5,5])]);
+                    case 'magnesium': 
+                        const m = find("strip_mesh");
+                        return new THREE.AnimationClip('anim', 1.5, [
+                            new THREE.ColorKeyframeTrack(`${m.uuid}.material.color`, [0, 0.5, 1.5], [0.9,0.9,0.9, 1,0,0, 0.1,0.1,0.1]),
+                            new THREE.ColorKeyframeTrack(`${m.uuid}.material.emissive`, [0, 0.5, 1.5], [0,0,0, 1,1,1, 0,0,0])
+                        ]);
                     default: return null;
                 }
             }
@@ -958,22 +878,13 @@ case 'knife': {
             open(step) {
                 this.prompt.textContent = `Select an item to use for: ${step.title}`;
                 this.grid.innerHTML = '';
-                if (inventory.length === 0) {
-                     this.grid.innerHTML = '<p class="text-gray-400 col-span-full">Your backpack is empty.</p>';
-                } else {
-                    inventory.forEach(itemName => {
-                        const itemEl = document.createElement('div');
-                        itemEl.className = 'backpack-item';
-                        itemEl.innerHTML = `<div class="backpack-item-name">${itemName.replace(/_/g, ' ')}</div>`;
-                        const handler = (event) => {
-                            event.preventDefault(); // Important for touch devices
-                            this.selectItem(itemName);
-                        };
-                        itemEl.onclick = handler;
-                        itemEl.addEventListener('touchstart', handler, { passive: false });
-                        this.grid.appendChild(itemEl);
-                    });
-                }
+                inventory.forEach(itemName => {
+                    const itemEl = document.createElement('div');
+                    itemEl.className = 'backpack-item';
+                    itemEl.innerHTML = `<div class="backpack-item-name">${itemName.replace(/_/g, ' ')}</div>`;
+                    itemEl.onclick = () => this.selectItem(itemName);
+                    this.grid.appendChild(itemEl);
+                });
                 this.modal.classList.remove('hidden');
             },
             
@@ -988,87 +899,41 @@ case 'knife': {
                     this.modal.classList.add('hidden');
                 } else {
                     soundManager.playEncouragement();
-                    this.prompt.textContent = "That's not the right item. Try again.";
+                    this.prompt.textContent = "Try a different item.";
                 }
             },
-
-            close() {
-                this.modal.classList.add('hidden');
-            }
+            close() { this.modal.classList.add('hidden'); }
         };
         
         document.getElementById('backpack-button').onclick = () => backpackManager.open(storyData[currentStep]);
         document.getElementById('close-backpack-button').onclick = () => backpackManager.close();
 
         // --- App Initialization ---
-        document.getElementById('upload-music-button').addEventListener('click', () => {
-            document.getElementById('music-file-input').click();
-        });
-
+        document.getElementById('upload-music-button').addEventListener('click', () => document.getElementById('music-file-input').click());
         document.getElementById('music-file-input').addEventListener('change', (event) => {
             const file = event.target.files[0];
-            if (file && file.type === "audio/mpeg") {
+            if (file) {
                 customMusicUrl = URL.createObjectURL(file);
                 document.getElementById('music-file-name').textContent = file.name;
-                console.log("Custom music file loaded:", file.name);
             }
         });
         
         document.getElementById('start-button').addEventListener('click', async () => {
-            const startButton = document.getElementById('start-button');
-            const errorMessage = document.getElementById('permission-error-message');
-            
-            startButton.disabled = true;
-            startButton.textContent = "Starting...";
-            errorMessage.textContent = "";
-
-            const nameInput = document.getElementById('name-input').value;
-            if (nameInput.trim() !== "") {
-                characterName = nameInput.trim();
-            }
+            const startBtn = document.getElementById('start-button');
+            startBtn.disabled = true;
+            characterName = document.getElementById('name-input').value || "Survivor";
 
             try {
                 await soundManager.initialize();
                 soundManager.startBackgroundMusic();
-                
-                try {
-                    await arManager.init(true); // Attempt to start in AR mode
-                } catch (arError) {
-                    console.warn("AR Mode failed, falling back to 2D Mode.", arError);
-                    errorMessage.textContent = "Camera failed. Running in 2D mode.";
-                    await arManager.init(false); // Fallback to 2D mode
-                }
-                
+                await arManager.init(true);
                 document.getElementById('start-modal').classList.add('hidden');
-
             } catch (err) {
-                console.error("Critical error starting the app:", err);
-                errorMessage.textContent = "A critical error occurred. Please refresh.";
-                startButton.disabled = false;
-                startButton.textContent = "Start Experience";
+                console.error(err);
+                await arManager.init(false); // Fallback to 2D
+                document.getElementById('start-modal').classList.add('hidden');
             }
         });
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
