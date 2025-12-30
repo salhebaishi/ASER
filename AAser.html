@@ -803,11 +803,33 @@
                         model.add(bal);
                         break;
 
-                    case 'salty_water':
-                        const sw = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1, 32), new THREE.MeshStandardMaterial({ color: 0x87aebf, transparent: true, opacity: 0.8 }));
-                        sw.name = "salty_water_mesh";
-                        model.add(sw);
-                        break;
+                   case 'salty_water':
+    // 1. Use the same water image as murky water
+    texture = loader.load('water.png');
+    material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    const saltWaterSprite = new THREE.Sprite(material);
+    
+    // Ensure this matches the name your animation looks for
+    saltWaterSprite.name = "salty_water_mesh"; 
+    saltWaterSprite.scale.set(1, 1, 1);
+    model.add(saltWaterSprite);
+
+    // 2. Add the "Salt" dots layer
+    const saltGroup = new THREE.Group();
+    saltGroup.name = "salt_layer";
+
+    // Create 6 small white dots representing salt crystals
+    for(let i = 0; i < 6; i++) {
+        const grain = new THREE.Mesh(
+            new THREE.CircleGeometry(0.03, 16),
+            new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1.0 })
+        );
+        // Randomly scatter them within the glass boundaries
+        grain.position.set((Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4, 0.01);
+        saltGroup.add(grain);
+    }
+    model.add(saltGroup);
+    break;
                     
                     case 'cold_pack': 
                         const cp = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.2), new THREE.MeshStandardMaterial({ color: 0x4169E1, transparent: true }));
@@ -842,11 +864,32 @@
                 
                 switch(type) {
                     case 'salty_water': {
-                        const waterMesh = find('salty_water_mesh');
-                        const colorTrack = new THREE.ColorKeyframeTrack(`${waterMesh.uuid}.material.color`, [0, 1.5], [0.53,0.68,0.75, 0.68,0.85,0.9]);
-                        const opacityTrack = new THREE.NumberKeyframeTrack(`${waterMesh.uuid}.material.opacity`, [0, 1.5], [0.8, 0.4]);
-                        return new THREE.AnimationClip('anim', 2, [colorTrack, opacityTrack]);
-                    }
+    const waterMesh = find('salty_water_mesh');
+    const salt = find('salt_layer');
+    const tracks = [];
+
+    // Optional: Make the water sprite slightly more transparent/clearer
+    if (waterMesh) {
+        tracks.push(new THREE.NumberKeyframeTrack(
+            `${waterMesh.uuid}.material.opacity`,
+            [0, 1.5],
+            [1.0, 0.6]
+        ));
+    }
+
+    // REMOVE SALT DOTS: Loop through the children of the salt group
+    if (salt) {
+        salt.children.forEach((grain) => {
+            tracks.push(new THREE.NumberKeyframeTrack(
+                `${grain.uuid}.material.opacity`,
+                [0, 1.2], // Fades away over 1.2 seconds
+                [1, 0]    // From fully visible to invisible
+            ));
+        });
+    }
+
+    return new THREE.AnimationClip('distillation_anim', 2, tracks);
+}
                     case 'murky_water': 
     const mw = find('water_mesh');
     const dirt = find('dirt_layer'); // Find the dirt we just created
@@ -975,5 +1018,6 @@
     </script>
 </body>
 </html>
+
 
 
