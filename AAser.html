@@ -787,9 +787,12 @@
                         break;
 
                     case 'salty_water':
-                        const sw = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1, 32), new THREE.MeshStandardMaterial({ color: 0x87aebf, transparent: true, opacity: 0.8 }));
-                        sw.name = "salty_water_mesh";
-                        model.add(sw);
+                        texture = loader.load('water.png');
+                        material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+                        const waterSprite = new THREE.Sprite(material);
+                        waterSprite.name = "water_mesh"; // For animation matching
+                        waterSprite.scale.set(1, 1, 1);
+                        model.add(waterSprite);
                         break;
                     
                     case 'cold_pack': 
@@ -937,3 +940,4 @@
     </script>
 </body>
 </html>
+
