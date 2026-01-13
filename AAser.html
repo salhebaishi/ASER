@@ -724,7 +724,6 @@
                         geometry = new THREE.BoxGeometry(0.5, 0.5, 0.05); 
                         model.add(new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9, roughness: 0.2 }))); 
                         break;
-                        // أضف هذا الكود داخل switch (type) في دالة createModel
 case 'sand_filter':
     // الحاوية الخارجية للفلتر (شفافة)
     geometry = new THREE.CylinderGeometry(0.5, 0.4, 1.2, 32);
@@ -830,6 +829,21 @@ case 'sand_filter':
                         bal.position.y = 0.7;
                         model.add(bal);
                         break;
+                        case 'water_sample': {
+    // 1. الكأس الزجاجي الخارجي
+    const glassGeo = new THREE.CylinderGeometry(0.52, 0.52, 1.1, 32);
+    const glassMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.2 });
+    model.add(new THREE.Mesh(glassGeo, glassMat));
+
+    // 2. سائل الماء (المستهدف بالتغيير اللوني)
+    const waterGeo = new THREE.CylinderGeometry(0.5, 0.5, 1, 32);
+    // جعلنا الشفافية 0.8 ليكون مرئياً بوضوح في الكاميرا
+    const waterMat = new THREE.MeshStandardMaterial({ color: 0xADD8E6, transparent: true, opacity: 0.8 });
+    const ws = new THREE.Mesh(waterGeo, waterMat);
+    ws.name = "sample_mesh"; // التأكد من تطابق الاسم مع الأنيميشن
+    model.add(ws);
+    break;
+}
 
                    case 'salty_water':
     // 1. Use the same water image as murky water
@@ -952,6 +966,23 @@ case 'sand_filter': {
     }
 
     return new THREE.AnimationClip('distillation_anim', 2, tracks);
+}
+                        case 'water_sample': {
+    const ws = find("sample_mesh");
+    if (!ws) return null;
+
+    // تعريف اللون الأزرق الأصلي واللون الأحمر النهائي
+    const startColor = new THREE.Color(0xADD8E6); // أزرق فاتح
+    const endColor = new THREE.Color(0xFF0000);   // أحمر (نتيجة الاختبار)
+
+    return new THREE.AnimationClip('ph_test_anim', 1.5, [
+        // مسار تغيير اللون
+        new THREE.ColorKeyframeTrack(
+            `${ws.uuid}.material.color`, 
+            [0, 1.5], // زمن التحول ثانية ونصف
+            [startColor.r, startColor.g, startColor.b, endColor.r, endColor.g, endColor.b]
+        )
+    ]);
 }
                     case 'murky_water': 
     const mw = find('water_mesh');
@@ -1081,6 +1112,7 @@ case 'sand_filter': {
     </script>
 </body>
 </html>
+
 
 
 
