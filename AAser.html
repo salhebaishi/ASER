@@ -724,6 +724,32 @@
                         geometry = new THREE.BoxGeometry(0.5, 0.5, 0.05); 
                         model.add(new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9, roughness: 0.2 }))); 
                         break;
+                        // أضف هذا الكود داخل switch (type) في دالة createModel
+case 'sand_filter':
+    // الحاوية الخارجية للفلتر (شفافة)
+    geometry = new THREE.CylinderGeometry(0.5, 0.4, 1.2, 32);
+    material = new THREE.MeshStandardMaterial({ color: 0x888888, transparent: true, opacity: 0.4 });
+    const filterContainer = new THREE.Mesh(geometry, material);
+    model.add(filterContainer);
+
+    // طبقة الرمل (لون بيج)
+    const sand = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.45, 0.42, 0.4, 32), 
+        new THREE.MeshStandardMaterial({color: 0xC2B280})
+    );
+    sand.position.y = 0.1;
+    sand.name = "sand_layer";
+    model.add(sand);
+
+    // طبقة الفحم (لون أسود/رمادي داكن)
+    const charcoal = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.42, 0.4, 0.4, 32), 
+        new THREE.MeshStandardMaterial({color: 0x333333})
+    );
+    charcoal.position.y = -0.3;
+    charcoal.name = "charcoal_layer";
+    model.add(charcoal);
+    break;
 
                     // --- Target Items ---
                     case 'murky_water':
@@ -883,6 +909,23 @@ case 'cold_pack': {
         new THREE.VectorKeyframeTrack(`${cpMesh.uuid}.scale`, [0, 0.75, 1.5], [1, 1, 1, 1.05, 1.05, 1.05, 1, 1, 1])
     ]);
 }
+                        // أضف هذا الكود داخل switch(type) في دالة createAnimationForTarget
+case 'sand_filter': {
+    const sand = find('sand_layer');
+    const charcoal = find('charcoal_layer');
+    const tracks = [];
+
+    // إضافة تأثير "نبض" بسيط للتأكيد على نجاح العملية
+    if (sand) {
+        tracks.push(new THREE.VectorKeyframeTrack(
+            `${sand.uuid}.scale`, 
+            [0, 0.5, 1], 
+            [1, 1, 1, 1.1, 1, 1.1, 1, 1, 1]
+        ));
+    }
+    
+    return new THREE.AnimationClip('filter_anim', 1, tracks);
+}
                     case 'salty_water': {
     const waterMesh = find('salty_water_mesh');
     const salt = find('salt_layer');
@@ -1038,6 +1081,7 @@ case 'cold_pack': {
     </script>
 </body>
 </html>
+
 
 
 
