@@ -799,7 +799,40 @@ case 'sand_filter':
     }
     model.add(dirtGroup);
     break;
+case 'drain_cleaner': {
+    // 1. قارورة التفاعل
+    const bottleGeo = new THREE.CylinderGeometry(0.3, 0.4, 1, 32);
+    const bottleMat = new THREE.MeshStandardMaterial({ color: 0x333333, transparent: true, opacity: 0.7 });
+    model.add(new THREE.Mesh(bottleGeo, bottleMat));
 
+    // 2. فوهة القارورة
+    const neckGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.3, 32);
+    const neck = new THREE.Mesh(neckGeo, bottleMat);
+    neck.position.y = 0.6;
+    model.add(neck);
+
+    // 3. بالون الهيدروجين (مخفي scaled to 0)
+    const balloonGeo = new THREE.SphereGeometry(0.2, 32, 32);
+    const balloonMat = new THREE.MeshStandardMaterial({ color: 0xFFD700, emissive: 0x444400 }); // لون ذهبي
+    const balloon = new THREE.Mesh(balloonGeo, balloonMat);
+    balloon.name = "hydrogen_balloon";
+    balloon.position.y = 0.8;
+    balloon.scale.set(0, 0, 0); // مخفي في البداية
+    model.add(balloon);
+
+    // 4. تأثير الفقاعات (داخل السائل)
+    const bubbleGeo = new THREE.SphereGeometry(0.02, 8, 8);
+    const bubbleMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 });
+    const bubbles = new THREE.Group();
+    bubbles.name = "gas_bubbles";
+    for(let i=0; i<10; i++) {
+        const b = new THREE.Mesh(bubbleGeo, bubbleMat);
+        b.position.set((Math.random()-0.5)*0.3, -0.4, (Math.random()-0.5)*0.3);
+        bubbles.add(b);
+    }
+    model.add(bubbles);
+    break;
+}
                     case 'knife':
                         texture = loader.load('knife.png');
                         const knifeSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
@@ -945,6 +978,30 @@ case 'cold_pack': {
         new THREE.ColorKeyframeTrack(`${cpMesh.uuid}.material.color`, [0, 1], [0.25, 0.41, 0.88, 0.68, 0.85, 0.9]),
         new THREE.VectorKeyframeTrack(`${cpMesh.uuid}.scale`, [0, 0.75, 1.5], [1, 1, 1, 1.05, 1.05, 1.05, 1, 1, 1])
     ]);
+}
+                        case 'drain_cleaner': {
+    const balloon = find("hydrogen_balloon");
+    const bubbles = find("gas_bubbles");
+    if (!balloon || !bubbles) return null;
+
+    const tracks = [];
+
+    // 1. ظهور الفقاعات وتصاعدها
+    bubbles.children.forEach((b, i) => {
+        tracks.push(new THREE.NumberKeyframeTrack(`${b.uuid}.material.opacity`, [0, 0.5, 2], [0, 0.8, 0]));
+        tracks.push(new THREE.VectorKeyframeTrack(`${b.uuid}.position`, [0, 2], [b.position.x, -0.4, b.position.z, b.position.x, 0.5, b.position.z]));
+    });
+
+    // 2. انتفاخ البالون
+    tracks.push(new THREE.VectorKeyframeTrack(`${balloon.uuid}.scale`, [0.5, 1.5], [0,0,0, 3,4,3]));
+
+    // 3. طيران البالون للأعلى في نهاية التفاعل
+    tracks.push(new THREE.VectorKeyframeTrack(`${balloon.uuid}.position`, [1.5, 2.5], [0, 0.8, 0, 0, 5, 0]));
+    
+    // 4. اختفاء البالون تدريجياً أثناء الطيران
+    tracks.push(new THREE.NumberKeyframeTrack(`${balloon.uuid}.material.opacity`, [2, 2.5], [1, 0]));
+
+    return new THREE.AnimationClip('hydrogen_gen_anim', 2.5, tracks);
 }
                 
                         case 'cao_powder': {
@@ -1162,6 +1219,7 @@ case 'sand_filter': {
     </script>
 </body>
 </html>
+
 
 
 
