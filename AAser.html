@@ -724,6 +724,29 @@
                         geometry = new THREE.BoxGeometry(0.5, 0.5, 0.05); 
                         model.add(new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9, roughness: 0.2 }))); 
                         break;
+                        case 'cao_powder': {
+    // 1. وعاء التفاعل (كأس زجاجي)
+    const beakerGeo = new THREE.CylinderGeometry(0.5, 0.5, 1, 32);
+    const beakerMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 });
+    model.add(new THREE.Mesh(beakerGeo, beakerMat));
+
+    // 2. مسحوق أكسيد الكالسيوم (CaO)
+    const powderGeo = new THREE.CylinderGeometry(0.48, 0.48, 0.4, 32);
+    const powderMat = new THREE.MeshStandardMaterial({ color: 0xF5F5F5, emissive: 0x000000 });
+    const cao = new THREE.Mesh(powderGeo, powderMat);
+    cao.name = "cao_mesh";
+    cao.position.y = -0.3; // وضعه في قاع الكأس
+    model.add(cao);
+
+    // 3. تأثير البخار (مخفي في البداية)
+    const steamGeo = new THREE.CylinderGeometry(0.1, 0.4, 0.8, 32);
+    const steamMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0 });
+    const steam = new THREE.Mesh(steamGeo, steamMat);
+    steam.name = "steam_mesh";
+    steam.position.y = 0.4;
+    model.add(steam);
+    break;
+}
 case 'sand_filter':
     // الحاوية الخارجية للفلتر (شفافة)
     geometry = new THREE.CylinderGeometry(0.5, 0.4, 1.2, 32);
@@ -923,7 +946,34 @@ case 'cold_pack': {
         new THREE.VectorKeyframeTrack(`${cpMesh.uuid}.scale`, [0, 0.75, 1.5], [1, 1, 1, 1.05, 1.05, 1.05, 1, 1, 1])
     ]);
 }
-                        // أضف هذا الكود داخل switch(type) في دالة createAnimationForTarget
+                
+                        case 'cao_powder': {
+    const cao = find("cao_mesh");
+    const steam = find("steam_mesh");
+    if (!cao || !steam) return null;
+
+    const hotColor = new THREE.Color(0xFF4500); // لون حرارة برتقالي محمر
+
+    return new THREE.AnimationClip('exothermic_reaction', 2, [
+        // توهج المسحوق عند لمس الماء له
+        new THREE.ColorKeyframeTrack(
+            `${cao.uuid}.material.emissive`, 
+            [0, 0.5, 1.5], 
+            [0, 0, 0, hotColor.r, hotColor.g, hotColor.b, 0, 0, 0]
+        ),
+        // ظهور البخار وتصاعده للأعلى
+        new THREE.NumberKeyframeTrack(
+            `${steam.uuid}.material.opacity`, 
+            [0, 0.5, 1.5, 2], 
+            [0, 0.8, 0.4, 0]
+        ),
+        new THREE.VectorKeyframeTrack(
+            `${steam.uuid}.scale`, 
+            [0, 2], 
+            [1, 1, 1, 1.5, 2.5, 1.5]
+        )
+    ]);
+}// أضف هذا الكود داخل switch(type) في دالة createAnimationForTarget
 case 'sand_filter': {
     const sand = find('sand_layer');
     const charcoal = find('charcoal_layer');
@@ -1112,6 +1162,7 @@ case 'sand_filter': {
     </script>
 </body>
 </html>
+
 
 
 
