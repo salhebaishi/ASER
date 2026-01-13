@@ -865,6 +865,24 @@
                 const type = modelInstance.userData.name.replace(/ /g, '_');
                 
                 switch(type) {
+case 'heat_pack': {
+    const hpMesh = find('heat_pack_mesh');
+    return new THREE.AnimationClip('heat_anim', 1.5, [
+        // تغيير اللون ليصبح أحمر متوهجاً للإشارة إلى الحرارة
+        new THREE.ColorKeyframeTrack(`${hpMesh.uuid}.material.color`, [0, 1], [0.7, 0.13, 0.13, 1, 0.4, 0]),
+        // إضافة تأثير نبض بسيط (Scaling)
+        new THREE.VectorKeyframeTrack(`${hpMesh.uuid}.scale`, [0, 0.75, 1.5], [1, 1, 1, 1.1, 1.1, 1.1, 1, 1, 1])
+    ]);
+}
+
+case 'cold_pack': {
+    const cpMesh = find('pack_mesh');
+    return new THREE.AnimationClip('cold_anim', 1.5, [
+        // تغيير اللون إلى أزرق فاتح جداً
+        new THREE.ColorKeyframeTrack(`${cpMesh.uuid}.material.color`, [0, 1], [0.25, 0.41, 0.88, 0.68, 0.85, 0.9]),
+        new THREE.VectorKeyframeTrack(`${cpMesh.uuid}.scale`, [0, 0.75, 1.5], [1, 1, 1, 1.05, 1.05, 1.05, 1, 1, 1])
+    ]);
+}
                     case 'salty_water': {
     const waterMesh = find('salty_water_mesh');
     const salt = find('salt_layer');
@@ -1020,6 +1038,7 @@
     </script>
 </body>
 </html>
+
 
 
 
